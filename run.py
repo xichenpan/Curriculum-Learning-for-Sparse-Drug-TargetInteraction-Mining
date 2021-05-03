@@ -18,8 +18,7 @@ def main():
         shuffle=True,
         num_workers=8
     )
-    print(DTIdataset[0])
-    exit(0)
+
     graph_model = GraphNeuralNetwork(
         in_dim=DTIdataset.drug_dataset.embedding_dim,
         out_dim=args.d_model,
