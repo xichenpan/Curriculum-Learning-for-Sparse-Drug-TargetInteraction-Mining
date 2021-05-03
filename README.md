@@ -2,12 +2,12 @@
 
 
 ### Environment
-
+```
 python3.6+
 torch
 pysmiles==1.0.1
 numpy
-
+```
 ### Data Processor
 
 put ```train.csv``` into ```./data``` folder, then run
