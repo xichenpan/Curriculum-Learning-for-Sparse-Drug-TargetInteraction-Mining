@@ -28,6 +28,7 @@ class GraphAttentionLayer(nn.Module):
         self.attention_vec = nn.Parameter(torch.randn(head, 2 * dim))
         for _ in range(head):
             self.feedforward.append(nn.Linear(dim, dim))
+        self.relu = nn.ReLU()
 
     def forward(self, node_embedding, adj=None, **kwargs):
         '''
@@ -46,7 +47,7 @@ class GraphAttentionLayer(nn.Module):
             out.append(torch.bmm(attention, embed))
 
         out = torch.stack(out, 0).mean(0)
-        return out
+        return self.relu(out)
 
 
 class MLPLayer(nn.Module):
