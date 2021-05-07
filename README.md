@@ -21,3 +21,8 @@ python make_graph_dict.py
 First generate a more efficent indexed of original dataset ```drug.pkl,target.pkl,pairs.pkl```    
 Second generate side information about drug graphs ```element.json,hcount.json```  
 
+### TODO
+* code for pretrained model
+* code for data preprocessing for protein
+* code for fusion
+* experiment
