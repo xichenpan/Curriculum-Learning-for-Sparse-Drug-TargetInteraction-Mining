@@ -6,6 +6,7 @@ from torch.nn.utils.rnn import pad_sequence
 import math
 from models.GraphModels import GraphNeuralNetwork
 
+
 class ModalityNormalization(nn.Module):
     """
     batch*frame*features
@@ -56,8 +57,6 @@ class AVNet(nn.Module):
             num_graph_layer=args.graph_depth,
             head=args.GAT_head
         )
-
-
 
         # AVNET
         self.audioConv = nn.Conv1d(audinSize, dModel, kernel_size=2, stride=2, padding=0)

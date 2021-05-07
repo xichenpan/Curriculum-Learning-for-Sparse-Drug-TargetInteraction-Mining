@@ -12,7 +12,6 @@ from models.av_net import AVNet
 from data.Dataset import DrugTargetInteractionDataset
 from data.utils import collate_fn
 from utils.general import num_params, train, evaluate
-from utils.label_smoothing import SmoothCTCLoss
 from utils.parser import *
 
 
@@ -32,27 +31,38 @@ def main():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    DTIdataset = DrugTargetInteractionDataset(
+    # declaring the train and validation datasets and their corresponding dataloaders
+    trainData = DrugTargetInteractionDataset(
+        "train",
+        args.data_dir,
+        args.step_size,
         edge_weight=not args.no_edge_weight,
         use_hcount=not args.no_hcount
     )
-    drug_dataloader = DataLoader(
-        DTIdataset.drug_dataset,
-        batch_size=args.bz,
+    trainLoader = DataLoader(
+        trainData.drug_dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
         shuffle=True,
-        num_workers=8
+        **kwargs
     )
 
-    # declaring the train and validation datasets and their corresponding dataloaders
-    trainData = LRS2Main("train", args.data_dir, args["HDF5_DIRECTORY"], args["CHAR_TO_INDEX"],
-                         args.step_size)
-    trainLoader = DataLoader(trainData, batch_size=args["BATCH_SIZE"], collate_fn=collate_fn, shuffle=True, **kwargs)
-
-    valData = LRS2Main("val", args["DATA_DIRECTORY"], args["HDF5_DIRECTORY"], args["CHAR_TO_INDEX"], args["STEP_SIZE"])
-    valLoader = DataLoader(valData, batch_size=args["BATCH_SIZE"], collate_fn=collate_fn, shuffle=True, **kwargs)
+    valData = DrugTargetInteractionDataset(
+        "val",
+        args.data_dir,
+        args.step_size,
+        edge_weight=not args.no_edge_weight,
+        use_hcount=not args.no_hcount
+    )
+    valLoader = DataLoader(
+        trainData.drug_dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
+        shuffle=True,
+        **kwargs
+    )
 
     # declaring the model, optimizer, scheduler and the loss function
-    # dModel, nHeads, numLayers, inSize, fcHiddenSize, dropout, numClasses
     model = AVNet("train", args['WAV2VEC_DIRECTORY'], args["TX_NUM_FEATURES"], args["TX_ATTENTION_HEADS"],
                   args["TX_NUM_LAYERS"],
                   args["PE_MAX_LENGTH"], args["AUDIO_FEATURE_SIZE"], args["VIDEO_FEATURE_SIZE"],
@@ -65,37 +75,15 @@ def main():
                                                      threshold_mode="abs", min_lr=args.final_lr, verbose=True)
     loss_function = nn.CrossEntropyLoss()
 
-    # removing the checkpoints directory if it exists and remaking it
-    if os.path.exists(args["CODE_DIRECTORY"] + "checkpoints"):
-        while True:
-            # ch = input("Continue and remove the 'checkpoints' directory? y/n: ")
-            ch = "y"
-            if ch == "y":
-                break
-            elif ch == "n":
-                exit()
-            else:
-                print("Invalid input")
-        shutil.rmtree(args["CODE_DIRECTORY"] + "checkpoints")
-
+    shutil.rmtree(args["CODE_DIRECTORY"] + "checkpoints")
     os.mkdir(args["CODE_DIRECTORY"] + "checkpoints")
     os.mkdir(args["CODE_DIRECTORY"] + "checkpoints/models")
     os.mkdir(args["CODE_DIRECTORY"] + "checkpoints/plots")
 
-    # loading the pretrained weights
-    if args["PRETRAINED_FINAL_MODEL_FILE"] is not None:
-        print("\n\nPre-trained Model File: %s" %
-              (args["PRETRAINED_FINAL_MODEL_FILE"]))
-        print("\nLoading the pre-trained model .... \n")
-        model.load_state_dict(torch.load(
-            args["CODE_DIRECTORY"] + args["PRETRAINED_FINAL_MODEL_FILE"], map_location=device))
-        model.to(device)
-        print("Loading Done.\n")
-
     trainingLossCurve = list()
     validationLossCurve = list()
-    trainingWERCurve = list()
-    validationWERCurve = list()
+    trainingAccCurve = list()
+    validationAccCurve = list()
 
     # printing the total and trainable parameters in the model
     numTotalParams, numTrainableParams = num_params(model)
@@ -104,36 +92,29 @@ def main():
 
     print("\nTraining the model .... \n")
 
-    trainParams = {"spaceIx": args["CHAR_TO_INDEX"][" "], "eosIx": args["CHAR_TO_INDEX"]["<EOS>"],
-                   "aoProb": args["AUDIO_ONLY_PROBABILITY"], "voProb": args["VIDEO_ONLY_PROBABILITY"]}
-    valParams = {"decodeScheme": "greedy", "spaceIx": args["CHAR_TO_INDEX"][" "],
-                 "eosIx": args["CHAR_TO_INDEX"]["<EOS>"], "aoProb": 0, "voProb": 0}
-
     for step in range(args["NUM_STEPS"]):
 
         # train the model for one step
-        trainingLoss, trainingCER, trainingWER = train(model, trainLoader, optimizer, loss_function, device,
-                                                       trainParams)
+        trainingLoss, trainingAcc = train(model, trainLoader, optimizer, loss_function, device)
         trainingLossCurve.append(trainingLoss)
-        trainingWERCurve.append(trainingWER)
+        trainingAccCurve.append(trainingAcc)
 
         # evaluate the model on validation set
-        validationLoss, validationCER, validationWER = evaluate(model, valLoader, loss_function, device, valParams)
+        validationLoss, validationAcc = evaluate(model, valLoader, loss_function, device)
         validationLossCurve.append(validationLoss)
-        validationWERCurve.append(validationWER)
+        validationAccCurve.append(validationAcc)
 
         # printing the stats after each step
-        print(
-            "Step: %03d || Tr.Loss: %.6f  Val.Loss: %.6f || Tr.CER: %.3f  Val.CER: %.3f || Tr.WER: %.3f  Val.WER: %.3f"
-            % (step, trainingLoss, validationLoss, trainingCER, validationCER, trainingWER, validationWER))
+        print("Step: %03d || Tr.Loss: %.6f  Val.Loss: %.6f || Tr.Acc: %.3f  Val.Acc: %.3f"
+              % (step, trainingLoss, validationLoss, trainingAcc, validationAcc))
 
         # make a scheduler step
-        scheduler.step(validationWER)
+        scheduler.step(validationAcc)
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
-        if ((step % args["SAVE_FREQUENCY"] == 0) or (step == args["NUM_STEPS"] - 1)) and (step != 0):
-            savePath = args["CODE_DIRECTORY"] + "checkpoints/models/train-step_{:04d}-wer_{:.3f}.pt".format(
-                step, validationWER)
+        if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):
+            savePath = args["CODE_DIRECTORY"] + "checkpoints/models/train-step_{:04d}-Acc_{:.3f}.pt".format(
+                step, validationAcc)
             torch.save(model.state_dict(), savePath)
 
             plt.figure()
@@ -150,16 +131,16 @@ def main():
             plt.close()
 
             plt.figure()
-            plt.title("WER Curves")
+            plt.title("Acc Curves")
             plt.xlabel("Step No.")
-            plt.ylabel("WER")
-            plt.plot(list(range(1, len(trainingWERCurve) + 1)),
-                     trainingWERCurve, "blue", label="Train")
-            plt.plot(list(range(1, len(validationWERCurve) + 1)),
-                     validationWERCurve, "red", label="Validation")
+            plt.ylabel("Acc")
+            plt.plot(list(range(1, len(trainingAccCurve) + 1)),
+                     trainingAccCurve, "blue", label="Train")
+            plt.plot(list(range(1, len(validationAccCurve) + 1)),
+                     validationAccCurve, "red", label="Validation")
             plt.legend()
             plt.savefig(args["CODE_DIRECTORY"] +
-                        "checkpoints/plots/train-step_{:04d}-wer.png".format(step))
+                        "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
             plt.close()
 
     print("\nTraining Done.\n")
