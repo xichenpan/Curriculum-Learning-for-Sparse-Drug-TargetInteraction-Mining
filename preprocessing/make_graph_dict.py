@@ -3,11 +3,14 @@ import pysmiles
 import logging
 import json
 
+from utils.parser import *
+
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 MAX_NODES = 0
 
 if __name__ == '__main__':
-    durgs = pkl.load(open('./drug.pkl', 'rb'))
+    args = parse_args()
+    durgs = pkl.load(open(args.data_dir + '/drug.pkl', 'rb'))
 
     element = set()
     hcount = set()
@@ -25,7 +28,7 @@ if __name__ == '__main__':
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-    with open('element.json', 'w') as f:
+    with open(args.data_dir + 'element.json', 'w') as f:
         f.write(json.dumps(element))
-    with open('hcount.json', 'w') as f:
+    with open(args.data_dir + 'hcount.json', 'w') as f:
         f.write(json.dumps(hcount))
