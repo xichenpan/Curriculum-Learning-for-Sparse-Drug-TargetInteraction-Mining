@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import os
 import shutil
 
-from models.av_net import AVNet
+from models.dt_net import DTNet
 from data.Dataset import DrugTargetInteractionDataset
 from data.utils import collate_fn
 from utils.general import num_params, train, evaluate
@@ -63,10 +63,9 @@ def main():
     )
 
     # declaring the model, optimizer, scheduler and the loss function
-    model = AVNet("train", args['WAV2VEC_DIRECTORY'], args["TX_NUM_FEATURES"], args["TX_ATTENTION_HEADS"],
-                  args["TX_NUM_LAYERS"],
-                  args["PE_MAX_LENGTH"], args["AUDIO_FEATURE_SIZE"], args["VIDEO_FEATURE_SIZE"],
-                  args["TX_FEEDFORWARD_DIM"], args["TX_DROPOUT"], args["NUM_CLASSES"], args["MAIN_REQ_INPUT_LENGTH"])
+
+    model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
+                  args.graph_depth, args.GAT_head, None, args.pretrain_dir)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR,

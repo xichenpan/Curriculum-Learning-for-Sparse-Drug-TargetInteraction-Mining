@@ -5,6 +5,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--code_dir', type=str, default='')
     parser.add_argument('--data_dir', type=str, default='../3e_data')
+    parser.add_argument('--pretrain_dir', type=str, default='')
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--seed', type=int, default=19260817)

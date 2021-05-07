@@ -1,10 +1,5 @@
 import torch
-import numpy as np
 from tqdm import tqdm
-
-from .metrics import compute_cer, compute_wer
-from .decoders import ctc_greedy_decode, ctc_search_decode
-from data.utils import req_input_length
 
 
 def num_params(model):
@@ -16,93 +11,55 @@ def num_params(model):
     return numTotalParams, numTrainableParams
 
 
-def train(model, trainLoader, optimizer, loss_function, device, trainParams):
-    """
-    Function to train the model for one iteration. (Generally, one iteration = one epoch, but here it is one step).
-    It also computes the training loss, CER and WER. The CTC decode scheme is always 'greedy' here.
-    """
+def compute_Acc(outputBatch, labelinputBatch):
+    return 1
 
+
+def train(model, trainLoader, optimizer, loss_function, device):
     trainingLoss = 0
-    trainingCER = 0
-    trainingWER = 0
-    for batch, (inputBatch, targetBatch, targetLenBatch) in enumerate(tqdm(trainLoader, leave=False, desc="Train",
-                                                                           ncols=75)):
-        node, adj, padding_mask = [data.cuda().float() for data in batch]
-        node = graph_model(node, adj)
+    trainingAcc = 0
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
+            tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
+                          druginputBatch[2].float().to(device))
+        targetinputBatch = None
+        labelinputBatch = labelinputBatch.int().to(device)
 
-        inputBatch, targetBatch = ((inputBatch[0].float()).to(device), inputBatch[1].to(device),
-                                   (inputBatch[2].float()).to(device), (inputBatch[3].int()).to(device)), (
-                                      targetBatch.int()).to(device)
-        targetLenBatch = (targetLenBatch.int()).to(device)
-        with torch.no_grad():
-            reqInpLen = req_input_length(targetBatch, targetLenBatch).to(device)
-
-        opmode = np.random.choice(["AO", "VO", "AV"], p=[trainParams["aoProb"], trainParams["voProb"],
-                                                         1 - (trainParams["aoProb"] + trainParams["voProb"])])
         optimizer.zero_grad()
         model.train()
-        inputLenBatch, outputBatch = model(inputBatch, reqInpLen, opmode)
+        outputBatch = model(druginputBatch, targetinputBatch)
         with torch.backends.cudnn.flags(enabled=False):
-            loss = loss_function(outputBatch, targetBatch, inputLenBatch, targetLenBatch)
+            loss = loss_function(outputBatch, labelinputBatch)
         loss.backward()
         optimizer.step()
 
         trainingLoss = trainingLoss + loss.item()
-        predictionBatch, predictionLenBatch = ctc_greedy_decode(outputBatch.detach(), inputLenBatch,
-                                                                trainParams["eosIx"])
-        trainingCER = trainingCER + compute_cer(predictionBatch, targetBatch, predictionLenBatch, targetLenBatch)
-        trainingWER = trainingWER + compute_wer(predictionBatch, targetBatch, predictionLenBatch, targetLenBatch,
-                                                trainParams["spaceIx"])
+        trainingAcc = trainingAcc + compute_Acc(outputBatch, labelinputBatch)
 
     trainingLoss = trainingLoss / len(trainLoader)
-    trainingCER = trainingCER / len(trainLoader)
-    trainingWER = trainingWER / len(trainLoader)
-    return trainingLoss, trainingCER, trainingWER
+    trainingAcc = trainingAcc / len(trainLoader)
+    return trainingLoss, trainingAcc
 
 
-def evaluate(model, evalLoader, loss_function, device, evalParams):
-    """
-    Function to evaluate the model over validation/test set. It computes the loss, CER and WER over the evaluation set.
-    The CTC decode scheme can be set to either 'greedy' or 'search'.
-    """
-
+def evaluate(model, evalLoader, loss_function, device):
     evalLoss = 0
-    evalCER = 0
-    evalWER = 0
-
-    for batch, (inputBatch, targetBatch, targetLenBatch) in enumerate(
+    evalAcc = 0
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
             tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
-        inputBatch, targetBatch = ((inputBatch[0].float()).to(device), inputBatch[1].to(device), (inputBatch[2].float())
-                                   .to(device), (inputBatch[3].int()).to(device)), (targetBatch.int()).to(device)
-        targetLenBatch = (targetLenBatch.int()).to(device)
-        with torch.no_grad():
-            reqInpLen = req_input_length(targetBatch, targetLenBatch).to(device)
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
+                          druginputBatch[2].float().to(device))
+        targetinputBatch = None
+        labelinputBatch = labelinputBatch.int().to(device)
 
-        opmode = np.random.choice(["AO", "VO", "AV"], p=[evalParams["aoProb"], evalParams["voProb"],
-                                                         1 - (evalParams["aoProb"] + evalParams["voProb"])])
         model.eval()
         with torch.no_grad():
-            inputLenBatch, outputBatch = model(inputBatch, reqInpLen, opmode)
+            outputBatch = model(druginputBatch, targetinputBatch)
             with torch.backends.cudnn.flags(enabled=False):
-                loss = loss_function(outputBatch, targetBatch, inputLenBatch, targetLenBatch)
+                loss = loss_function(outputBatch, labelinputBatch)
 
         evalLoss = evalLoss + loss.item()
-        if evalParams["decodeScheme"] == "greedy":
-            predictionBatch, predictionLenBatch = ctc_greedy_decode(outputBatch, inputLenBatch, evalParams["eosIx"])
-        elif evalParams["decodeScheme"] == "search":
-            predictionBatch, predictionLenBatch = ctc_search_decode(outputBatch, inputLenBatch,
-                                                                    evalParams["beamSearchParams"],
-                                                                    evalParams["spaceIx"], evalParams["eosIx"],
-                                                                    evalParams["lm"])
-        else:
-            print("Invalid Decode Scheme")
-            exit()
-
-        evalCER = evalCER + compute_cer(predictionBatch, targetBatch, predictionLenBatch, targetLenBatch)
-        evalWER = evalWER + compute_wer(predictionBatch, targetBatch, predictionLenBatch, targetLenBatch,
-                                        evalParams["spaceIx"])
+        evalAcc = evalAcc + compute_Acc(outputBatch, labelinputBatch)
 
     evalLoss = evalLoss / len(evalLoader)
-    evalCER = evalCER / len(evalLoader)
-    evalWER = evalWER / len(evalLoader)
-    return evalLoss, evalCER, evalWER
+    evalAcc = evalAcc / len(evalLoader)
+    return evalLoss, evalAcc
