@@ -1,9 +1,10 @@
-from GraphModels import GraphNeuralNetwork
-from utils import *
-from Dataset import DrugTargetInteractionDataset
+from models.GraphModels import GraphNeuralNetwork
+from data.Dataset import DrugTargetInteractionDataset
 import torch
 from torch.utils.data import DataLoader
 import tqdm
+from utils.parser import *
+
 
 def main():
     args = parse_args()

@@ -25,7 +25,6 @@ if __name__ == '__main__':
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-
     with open('element.json', 'w') as f:
         f.write(json.dumps(element))
     with open('hcount.json', 'w') as f:
