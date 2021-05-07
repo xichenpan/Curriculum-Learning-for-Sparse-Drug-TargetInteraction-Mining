@@ -27,7 +27,7 @@ class DTNet(nn.Module):
         super(DTNet, self).__init__()
 
         # drug-GNN
-        self.graph_model = GraphNeuralNetwork(
+        self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
             out_dim=dModel,
             layer_type=graph_layer,
@@ -35,19 +35,41 @@ class DTNet(nn.Module):
             num_graph_layer=graph_depth,
             head=GAT_head
         )
+        self.drug_conv = nn.Sequential(
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+        )
         # target-pretrained model
+        self.target_net = None
+        self.target_conv = nn.Sequential(
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.LayerNorm(dModel),
+            nn.ReLU(),
+            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+        )
 
         # fusion
         self.outputConv = nn.Conv1d(dModel, 2, kernel_size=1, stride=1, padding=0)
         return
 
     def forward(self, druginputBatch, targetinputBatch):
-        druginputBatch = self.graph_model(druginputBatch[0], druginputBatch[1])
+        druginputBatch = self.drug_net(druginputBatch[0], druginputBatch[1])
+        targetinputBatch = self.target_net(targetinputBatch)
 
-        jointBatch = self.jointDecoder(jointBatch, src_key_padding_mask=mask)
-        jointBatch = jointBatch.transpose(0, 1).transpose(1, 2)
+        jointBatch = None
         jointBatch = self.outputConv(jointBatch)
-        jointBatch = jointBatch.transpose(1, 2).transpose(0, 1)
-        # print(F.softmax(jointBatch,2))
-        outputBatch = F.log_softmax(jointBatch, dim=2)
-        return outputBatch
+        return jointBatch

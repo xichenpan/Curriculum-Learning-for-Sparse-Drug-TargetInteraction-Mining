@@ -76,7 +76,8 @@ class TargetDataset(Dataset):
         pass
 
     def __getitem__(self, index):
-        pass
+        protein_string = None
+        return protein_string
 
 
 class DrugTargetInteractionDataset(Dataset):
