@@ -40,7 +40,7 @@ def main():
         use_hcount=not args.no_hcount
     )
     trainLoader = DataLoader(
-        trainData.drug_dataset,
+        trainData,
         batch_size=args.batch_size,
         collate_fn=collate_fn,
         shuffle=True,
@@ -55,7 +55,7 @@ def main():
         use_hcount=not args.no_hcount
     )
     valLoader = DataLoader(
-        trainData.drug_dataset,
+        valData,
         batch_size=args.batch_size,
         collate_fn=collate_fn,
         shuffle=True,

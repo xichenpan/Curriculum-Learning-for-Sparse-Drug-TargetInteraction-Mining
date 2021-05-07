@@ -1,4 +1,4 @@
-import torch
+from torch.utils.data import Dataset
 import pickle as pkl
 import pysmiles
 import json
@@ -11,9 +11,9 @@ logger = logging.getLogger('Data')
 MAX_NODE_SIZE = 629
 
 
-class DrugDataset(torch.utils.data.Dataset):
+class DrugDataset(Dataset):
     def __init__(self, edge_weight=True, use_hcount=True, **kwargs):
-        '''
+        """
         :arg
             edge_weight:
                 False - returns binary matrix, 1 for adjacent, 0 for not.
@@ -21,7 +21,7 @@ class DrugDataset(torch.utils.data.Dataset):
             use_hcount:
                 False - only use element of each node to embed node
                 True - add extra hydrogens count info
-        '''
+        """
         super(DrugDataset, self).__init__()
         self.edge_weight = edge_weight
         self.use_hcount = use_hcount
@@ -43,8 +43,8 @@ class DrugDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, item):
-        smile_str = self.data[item]
+    def __getitem__(self, index):
+        smile_str = self.data[index]
         graph = pysmiles.read_smiles(smile_str)
 
         node_embedding = np.zeros([MAX_NODE_SIZE, self.embedding_dim])
@@ -63,10 +63,11 @@ class DrugDataset(torch.utils.data.Dataset):
             adjacent_matrix[a, b] = val
             adjacent_matrix[b, a] = val
 
-        return node_embedding, adjacent_matrix, padding_mask
+        drug = (node_embedding, adjacent_matrix, padding_mask)
+        return drug
 
 
-class TargetDataset(torch.utils.data.Dataset):
+class TargetDataset(Dataset):
     def __init__(self, **kwargs):
         super(TargetDataset, self).__init__()
         pass
@@ -74,21 +75,36 @@ class TargetDataset(torch.utils.data.Dataset):
     def __len__(self):
         pass
 
-    def __getitem__(self, item):
+    def __getitem__(self, index):
         pass
 
 
-class DrugTargetInteractionDataset(torch.utils.data.Dataset):
-    def __init__(self, **kwargs):
+class DrugTargetInteractionDataset(Dataset):
+    def __init__(self, dataset, datadir, stepSize, **kwargs):
+        super(DrugTargetInteractionDataset, self).__init__()
+        self.pairs = pkl.load(open(datadir + "/" + dataset + '/pairs.pkl', 'rb'))
+        self.dataset = dataset
+        self.stepSize = stepSize
         self.drug_dataset = DrugDataset(**kwargs)
         self.target_dataset = TargetDataset(**kwargs)
-        self.pairs = pkl.load(open('./data/pairs.pkl', 'rb'))
         print('Load DTI Dataset Complete')
+        return
+
+    def __getitem__(self, index):
+        if self.dataset == "train":
+            # index goes from 0 to stepSize-1
+            # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
+            # fetch the sample at position 'index' in this randomly selected partition
+            base = self.stepSize * np.arange(int(len(self.pairs) / self.stepSize) + 1)
+            ixs = base + index
+            ixs = ixs[ixs < len(self.pairs)]
+            index = ixs[0] if len(ixs) == 1 else np.random.choice(ixs)
+
+        drug_idx, target_idx, label = self.pairs[index]
+        return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
 
     def __len__(self):
-        return len(self.pairs)
-        pass
-
-    def __getitem__(self, item):
-        drug_idx, target_idx, label = self.pairs[item]
-        return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
+        if self.dataset == "train":
+            return self.stepSize
+        else:
+            return len(self.pairs)
