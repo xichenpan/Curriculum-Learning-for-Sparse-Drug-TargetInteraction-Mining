@@ -3,14 +3,18 @@ import pysmiles
 import logging
 import json
 
+import sys
+
+sys.path.append("..")
 from utils.parser import *
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 MAX_NODES = 0
 
-if __name__ == '__main__':
+
+def make_graph_dict(dataset):
     args = parse_args()
-    durgs = pkl.load(open(args.data_dir + '/drug.pkl', 'rb'))
+    durgs = pkl.load(open(".." + args.data_dir + "/" + dataset + '/drug.pkl', 'rb'))
 
     element = set()
     hcount = set()
@@ -28,7 +32,12 @@ if __name__ == '__main__':
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-    with open(args.data_dir + 'element.json', 'w') as f:
+    with open(".." + args.data_dir + "/" + dataset + 'element.json', 'w') as f:
         f.write(json.dumps(element))
-    with open(args.data_dir + 'hcount.json', 'w') as f:
+    with open(".." + args.data_dir + "/" + dataset + 'hcount.json', 'w') as f:
         f.write(json.dumps(hcount))
+
+
+if __name__ == '__main__':
+    make_graph_dict("train")
+    make_graph_dict("val")

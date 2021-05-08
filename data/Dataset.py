@@ -12,7 +12,7 @@ MAX_NODE_SIZE = 629
 
 
 class DrugDataset(Dataset):
-    def __init__(self, edge_weight=True, use_hcount=True, **kwargs):
+    def __init__(self, dataset, datadir, edge_weight=True, use_hcount=True, **kwargs):
         """
         :arg
             edge_weight:
@@ -25,10 +25,10 @@ class DrugDataset(Dataset):
         super(DrugDataset, self).__init__()
         self.edge_weight = edge_weight
         self.use_hcount = use_hcount
-        self.data = pkl.load(open('./data/drug.pkl', 'rb'))
+        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/drug.pkl', 'rb'))
 
-        element = json.load(open('./data/element.json'))
-        hcount = json.load(open('./data/hcount.json'))
+        element = json.load(open("../" + datadir + "/" + dataset + '/element.json'))
+        hcount = json.load(open("../" + datadir + "/" + dataset + '/hcount.json'))
 
         self.element2idx = {ele: i for i, ele in enumerate(element)}
         self.hcount2idx = {count: i for i, count in enumerate(hcount)}
@@ -68,26 +68,26 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, **kwargs):
+    def __init__(self, dataset, datadir, **kwargs):
         super(TargetDataset, self).__init__()
-        pass
+        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
 
     def __len__(self):
-        pass
+        return len(self.data)
 
     def __getitem__(self, index):
-        protein_string = None
-        return protein_string
+        protein_string = self.data[index]
+        return bytes(protein_string, encoding='utf8')
 
 
 class DrugTargetInteractionDataset(Dataset):
     def __init__(self, dataset, datadir, stepSize, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
-        self.pairs = pkl.load(open(datadir + "/" + dataset + '/pairs.pkl', 'rb'))
+        self.pairs = pkl.load(open(".." + datadir + "/" + dataset + '/pairs.pkl', 'rb'))
         self.dataset = dataset
         self.stepSize = stepSize
-        self.drug_dataset = DrugDataset(**kwargs)
-        self.target_dataset = TargetDataset(**kwargs)
+        self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)
+        self.target_dataset = TargetDataset(dataset, datadir, **kwargs)
         print('Load DTI Dataset Complete')
         return
 

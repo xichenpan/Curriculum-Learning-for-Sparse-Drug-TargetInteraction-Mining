@@ -1,12 +1,15 @@
 import pandas as pd
 import pickle
 
+import sys
+
+sys.path.append("..")
 from utils.parser import *
 
 
-if __name__ == '__main__':
+def decompose(dataset):
     args = parse_args()
-    data = pd.read_csv(args.data_dir + '/train.csv').values.tolist()
+    data = pd.read_csv(".." + args.data_dir + "/" + dataset + "/" + dataset + ".csv").values.tolist()
     drug, target, label = list(zip(*data))
 
     drug_set = list(set(drug))
@@ -19,10 +22,10 @@ if __name__ == '__main__':
         target: idx for idx, target in enumerate(target_set)
     }
 
-    with open(args.data_dir + '/drug.pkl', 'wb') as f:
+    with open(".." + args.data_dir + "/" + dataset + '/drug.pkl', 'wb') as f:
         pickle.dump(drug_set, f)
 
-    with open(args.data_dir + '/target.pkl', 'wb') as f:
+    with open(".." + args.data_dir + "/" + dataset + '/target.pkl', 'wb') as f:
         pickle.dump(target_set, f)
 
     pairs = []
@@ -32,5 +35,10 @@ if __name__ == '__main__':
         target_id = target2idx[target]
         pairs.append([drug_id, target_id, label])
 
-    with open(args.data_dir + '/pairs.pkl', 'wb') as f:
+    with open(".." + args.data_dir + "/" + dataset + '/pairs.pkl', 'wb') as f:
         pickle.dump(pairs, f)
+
+
+if __name__ == '__main__':
+    decompose("train")
+    decompose("val")
