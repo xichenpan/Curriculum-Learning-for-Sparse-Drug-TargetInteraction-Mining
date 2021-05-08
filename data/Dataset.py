@@ -4,6 +4,7 @@ import pysmiles
 import json
 import numpy as np
 import logging
+from utils.protein_embedding import *
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 logger = logging.getLogger('Data')
@@ -68,7 +69,7 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, dataset, datadir, **kwargs):
+    def __init__(self, dataset, datadir, pretrained_dir, deivce, **kwargs):
         super(TargetDataset, self).__init__()
         self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
 
@@ -77,7 +78,28 @@ class TargetDataset(Dataset):
 
     def __getitem__(self, index):
         protein_string = self.data[index]
-        return bytes(protein_string, encoding='utf8')
+
+        """-----load model----"""
+
+        root = "../"
+        model_path = os.path.join(root, "pretrained-model/model_weight.bin")
+
+        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
+        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
+        model = OrdinalRegression(embedding=model_, n_classes=5)
+
+        print(model)
+
+        tmp = torch.load(os.path.join(root, model_path))
+        model.load_state_dict(tmp)
+
+        model = load_model(model, device=device)  # decompose the model into three parts
+
+        x = bytes(protein_string, encoding='utf8')
+
+        z = embedding(x, model, device)
+
+        return z
 
 
 class DrugTargetInteractionDataset(Dataset):
