@@ -10,7 +10,7 @@ import shutil
 
 from models.dt_net import DTNet
 from data.Dataset import DrugTargetInteractionDataset
-from data.utils import collate_fn
+from data.datautils import collate_fn
 from utils.general import num_params, train, evaluate
 from utils.parser import *
 

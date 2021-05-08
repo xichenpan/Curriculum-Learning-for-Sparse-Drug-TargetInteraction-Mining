@@ -14,7 +14,7 @@ logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 def make_graph_dict(dataset):
     MAX_NODES = 0
     args = parse_args()
-    durgs = pkl.load(open(".." + args.data_dir + "/" + dataset + '/drug.pkl', 'rb'))
+    durgs = pkl.load(open("../" + args.data_dir + "/" + dataset + '/drug.pkl', 'rb'))
 
     element = set()
     hcount = set()
@@ -32,9 +32,9 @@ def make_graph_dict(dataset):
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-    with open(".." + args.data_dir + "/" + dataset + 'element.json', 'w') as f:
+    with open("../" + args.data_dir + "/" + dataset + 'element.json', 'w') as f:
         f.write(json.dumps(element))
-    with open(".." + args.data_dir + "/" + dataset + 'hcount.json', 'w') as f:
+    with open("../" + args.data_dir + "/" + dataset + 'hcount.json', 'w') as f:
         f.write(json.dumps(hcount))
 
 
