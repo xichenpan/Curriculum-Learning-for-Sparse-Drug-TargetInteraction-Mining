@@ -21,8 +21,8 @@ def train(model, trainLoader, optimizer, loss_function, device):
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
             tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
-                          druginputBatch[2].float().to(device))
-        targetinputBatch = None
+                          druginputBatch[2].bool().to(device))
+        targetinputBatch = (targetinputBatch[0].float().to(device), targetinputBatch[1].bool().to(device))
         labelinputBatch = labelinputBatch.int().to(device)
 
         optimizer.zero_grad()
@@ -47,8 +47,8 @@ def evaluate(model, evalLoader, loss_function, device):
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
             tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
-                          druginputBatch[2].float().to(device))
-        targetinputBatch = None
+                          druginputBatch[2].bool().to(device))
+        targetinputBatch = (targetinputBatch[0].float().to(device), targetinputBatch[1].bool().to(device))
         labelinputBatch = labelinputBatch.int().to(device)
 
         model.eval()

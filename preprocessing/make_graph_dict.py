@@ -9,10 +9,10 @@ sys.path.append("..")
 from utils.parser import *
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
-MAX_NODES = 0
 
 
 def make_graph_dict(dataset):
+    MAX_NODES = 0
     args = parse_args()
     durgs = pkl.load(open(".." + args.data_dir + "/" + dataset + '/drug.pkl', 'rb'))
 

@@ -13,7 +13,11 @@ def collate_fn(dataBatch):
     druginputBatch = (drug_node_embedding, drug_adjacent_matrix, drug_padding_mask)
 
     # target
-    targetinputBatch = None
+    target_embedding = pad_sequence([data[1] for data in dataBatch], batch_first=True)
+    target_padding_mask = torch.zeros((len(target_embedding), len(max(target_embedding, key=len))), dtype=torch.bool)
+    for i, seq in enumerate(target_padding_mask):
+        target_padding_mask[i, len(seq):] = True
+    targetinputBatch = (target_embedding, target_padding_mask)
 
     # label
     labelinputBatch = [data[2] for data in dataBatch]
