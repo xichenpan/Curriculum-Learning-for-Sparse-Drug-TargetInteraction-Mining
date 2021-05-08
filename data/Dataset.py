@@ -28,10 +28,10 @@ class DrugDataset(Dataset):
         super(DrugDataset, self).__init__()
         self.edge_weight = edge_weight
         self.use_hcount = use_hcount
-        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/drug.pkl', 'rb'))
+        self.data = pkl.load(open(datadir + "/" + dataset + '/drug.pkl', 'rb'))
 
-        element = json.load(open("../" + datadir + "/" + dataset + '/element.json'))
-        hcount = json.load(open("../" + datadir + "/" + dataset + '/hcount.json'))
+        element = json.load(open(datadir + "/" + dataset + '/element.json'))
+        hcount = json.load(open(datadir + "/" + dataset + '/hcount.json'))
 
         self.element2idx = {ele: i for i, ele in enumerate(element)}
         self.hcount2idx = {count: i for i, count in enumerate(hcount)}
@@ -73,15 +73,17 @@ class DrugDataset(Dataset):
 class TargetDataset(Dataset):
     def __init__(self, dataset, datadir, pretrained_dir, device, **kwargs):
         super(TargetDataset, self).__init__()
-        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
+        self.data = pkl.load(open(datadir + "/" + dataset + '/target.pkl', 'rb'))
         self.device = device
         lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
         model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
         model = OrdinalRegression(embedding=model_, n_classes=5)
-        tmp = torch.load("../" + pretrained_dir)
+        tmp = torch.load(pretrained_dir)
         model.load_state_dict(tmp)
         model = load_model(model, device=device)
         self.model = model
+        print('Load Target Dataset Complete')
+        return
 
     def __len__(self):
         return len(self.data)
@@ -89,14 +91,17 @@ class TargetDataset(Dataset):
     def __getitem__(self, index):
         protein_string = self.data[index]
         protein_string = bytes(protein_string, encoding='utf8')
+        import time
+        s = time.time()
         protein_embedding = embedding(protein_string, self.model, self.device)
+        print(time.time()-s)
         return protein_embedding
 
 
 class DrugTargetInteractionDataset(Dataset):
     def __init__(self, dataset, datadir, stepSize, pretrained_dir, device, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
-        self.pairs = pkl.load(open(".." + datadir + "/" + dataset + '/pairs.pkl', 'rb'))
+        self.pairs = pkl.load(open(datadir + "/" + dataset + '/pairs.pkl', 'rb'))
         self.dataset = dataset
         self.stepSize = stepSize
         self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)

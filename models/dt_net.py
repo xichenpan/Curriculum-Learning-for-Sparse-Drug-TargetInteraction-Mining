@@ -75,9 +75,9 @@ class DTNet(nn.Module):
         # fusion
         self.ModalityNormalization = ModalityNormalization()
         self.outputMLP = nn.Sequential(
-            nn.Linear(dModel, dModel / 2),
+            nn.Linear(dModel, dModel // 2),
             nn.ReLU(),
-            nn.Linear(dModel, 2)
+            nn.Linear(dModel // 2, 2)
         )
         return
 

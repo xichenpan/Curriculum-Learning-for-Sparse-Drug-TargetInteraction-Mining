@@ -32,9 +32,9 @@ def make_graph_dict(dataset):
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-    with open("../" + args.data_dir + "/" + dataset + 'element.json', 'w') as f:
+    with open("../" + args.data_dir + "/" + dataset + '/element.json', 'w') as f:
         f.write(json.dumps(element))
-    with open("../" + args.data_dir + "/" + dataset + 'hcount.json', 'w') as f:
+    with open("../" + args.data_dir + "/" + dataset + '/hcount.json', 'w') as f:
         f.write(json.dumps(hcount))
 
 

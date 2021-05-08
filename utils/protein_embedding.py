@@ -117,9 +117,7 @@ def embedding(x, model, device):
    :return: z
    """
     lm_embed, lstm_stack, proj = model
-    z = embed_sequence(x, lm_embed, lstm_stack, proj
-                       , include_lm=True, final_only=True
-                       , pool=None, device=device)
+    z = embed_sequence(x, lm_embed, lstm_stack, proj, include_lm=True, final_only=True, pool=None, device=device)
     return z
 
 

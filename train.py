@@ -67,7 +67,6 @@ def main():
     )
 
     # declaring the model, optimizer, scheduler and the loss function
-
     model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
                   args.graph_depth, args.GAT_head, args.target_in_size)
     model.to(device)
@@ -78,10 +77,11 @@ def main():
                                                      threshold_mode="abs", min_lr=args.final_lr, verbose=True)
     loss_function = nn.CrossEntropyLoss()
 
-    shutil.rmtree(args["CODE_DIRECTORY"] + "checkpoints")
-    os.mkdir(args["CODE_DIRECTORY"] + "checkpoints")
-    os.mkdir(args["CODE_DIRECTORY"] + "checkpoints/models")
-    os.mkdir(args["CODE_DIRECTORY"] + "checkpoints/plots")
+    if os.path.exists(args.code_dir + "checkpoints"):
+        shutil.rmtree(args.code_dir + "checkpoints")
+    os.mkdir(args.code_dir + "checkpoints")
+    os.mkdir(args.code_dir + "checkpoints/models")
+    os.mkdir(args.code_dir + "checkpoints/plots")
 
     trainingLossCurve = list()
     validationLossCurve = list()
@@ -95,7 +95,7 @@ def main():
 
     print("\nTraining the model .... \n")
 
-    for step in range(args["NUM_STEPS"]):
+    for step in range(args.num_steps):
 
         # train the model for one step
         trainingLoss, trainingAcc = train(model, trainLoader, optimizer, loss_function, device)
@@ -116,8 +116,7 @@ def main():
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
         if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):
-            savePath = args["CODE_DIRECTORY"] + "checkpoints/models/train-step_{:04d}-Acc_{:.3f}.pt".format(
-                step, validationAcc)
+            savePath = args.code_dir + "checkpoints/models/train-step_{:04d}-Acc_{:.3f}.pt".format(step, validationAcc)
             torch.save(model.state_dict(), savePath)
 
             plt.figure()
@@ -129,8 +128,7 @@ def main():
             plt.plot(list(range(1, len(validationLossCurve) + 1)),
                      validationLossCurve, "red", label="Validation")
             plt.legend()
-            plt.savefig(args["CODE_DIRECTORY"] +
-                        "checkpoints/plots/train-step_{:04d}-loss.png".format(step))
+            plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-loss.png".format(step))
             plt.close()
 
             plt.figure()
@@ -142,8 +140,7 @@ def main():
             plt.plot(list(range(1, len(validationAccCurve) + 1)),
                      validationAccCurve, "red", label="Validation")
             plt.legend()
-            plt.savefig(args["CODE_DIRECTORY"] +
-                        "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
+            plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
             plt.close()
 
     print("\nTraining Done.\n")
