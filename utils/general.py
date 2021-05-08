@@ -12,7 +12,8 @@ def num_params(model):
 
 
 def compute_Acc(outputBatch, labelinputBatch):
-    return 1
+    pred = outputBatch.argmax(dim=1)
+    return torch.eq(pred, labelinputBatch).sum().float().item()
 
 
 def train(model, trainLoader, optimizer, loss_function, device):
@@ -34,7 +35,7 @@ def train(model, trainLoader, optimizer, loss_function, device):
         optimizer.step()
 
         trainingLoss = trainingLoss + loss.item()
-        trainingAcc = trainingAcc + compute_Acc(outputBatch, labelinputBatch)
+        trainingAcc = trainingAcc + compute_Acc(outputBatch.detach(), labelinputBatch)
 
     trainingLoss = trainingLoss / len(trainLoader)
     trainingAcc = trainingAcc / len(trainLoader)

@@ -78,7 +78,7 @@ class TargetDataset(Dataset):
         lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
         model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
         model = OrdinalRegression(embedding=model_, n_classes=5)
-        tmp = torch.load(os.path.join(root, "../" + pretrained_dir))
+        tmp = torch.load("../" + pretrained_dir)
         model.load_state_dict(tmp)
         model = load_model(model, device=device)
         self.model = model
