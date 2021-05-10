@@ -110,7 +110,6 @@ def load_model(model, device=0):
 
 def embedding(x, model, device):
     """
-
    :param x: input protein sequence : batch * length
    :param model: (lm_embed, lstm_stack, proj)
    :param device: GPU:0,1,2,3

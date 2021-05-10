@@ -58,6 +58,7 @@ You should make sure to see the log below for correct split.
 # TestNegative = 2528401
 ```
 
+Second script generate ```element.json,hcount.json```
 
 
 ### TODO
