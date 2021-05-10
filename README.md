@@ -7,6 +7,7 @@ python3.6+
 torch
 pysmiles==1.0.1
 numpy
+tensorboardX
 ```
 
 ### Allen's Code Structure

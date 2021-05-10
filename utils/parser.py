@@ -3,6 +3,8 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--save_dir',type=str,required=True)
     parser.add_argument('--code_dir', type=str, default='')
     parser.add_argument('--data_dir', type=str, default='../3e_data')
     parser.add_argument('--pretrain_dir', type=str, default='../3e_pretrain/model_weight.bin')

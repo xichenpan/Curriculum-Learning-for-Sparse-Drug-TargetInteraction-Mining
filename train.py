@@ -13,6 +13,7 @@ from data.Dataset import DrugTargetInteractionDataset
 from data.datautils import collate_fn
 from utils.general import num_params, train, evaluate
 from utils.parser import *
+from tensorboardX import SummaryWriter
 
 
 def main():
@@ -62,7 +63,7 @@ def main():
         valData,
         batch_size=args.batch_size,
         collate_fn=collate_fn,
-        shuffle=True,
+        shuffle=False,
         **kwargs
     )
 
@@ -77,24 +78,20 @@ def main():
                                                      threshold_mode="abs", min_lr=args.final_lr, verbose=True)
     loss_function = nn.CrossEntropyLoss()
 
-    if os.path.exists(args.code_dir + "checkpoints"):
-        shutil.rmtree(args.code_dir + "checkpoints")
-    os.mkdir(args.code_dir + "checkpoints")
-    os.mkdir(args.code_dir + "checkpoints/models")
-    os.mkdir(args.code_dir + "checkpoints/plots")
-
-    trainingLossCurve = list()
-    validationLossCurve = list()
-    trainingAccCurve = list()
-    validationAccCurve = list()
+    # if os.path.exists(args.code_dir + "checkpoints"):
+    #     shutil.rmtree(args.code_dir + "checkpoints")
+    # os.mkdir(args.code_dir + "checkpoints")
+    # os.mkdir(args.code_dir + "checkpoints/models")
+    # os.mkdir(args.code_dir + "checkpoints/plots")
 
     # printing the total and trainable parameters in the model
     numTotalParams, numTrainableParams = num_params(model)
     print("\nNumber of total parameters in the model = %d" % numTotalParams)
     print("Number of trainable parameters in the model = %d\n" % numTrainableParams)
-
     print("\nTraining the model .... \n")
 
+    os.makedirs(os.path.join('checkpoints', args.save_dir))
+    writer = SummaryWriter(os.path.join('logs', args.save_dir))
     for step in range(args.num_steps):
 
         # train the model for one step
@@ -116,32 +113,38 @@ def main():
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
         if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):
-            savePath = args.code_dir + "checkpoints/models/train-step_{:04d}-Acc_{:.3f}.pt".format(step, validationAcc)
+            writer.add_scalar("train/acc", trainingAcc, step)
+            writer.add_scalar("train/loss", trainingLoss, step)
+            writer.add_scalar("val/acc", validationAcc, step)
+            writer.add_scalar("val/loss", validationLoss, step)
+
+            savePath = args.code_dir + "checkpoints/{}/train-step_{:04d}-Acc_{:.3f}.pt".format(args.save_dir, step,
+                                                                                               validationAcc)
             torch.save(model.state_dict(), savePath)
 
-            plt.figure()
-            plt.title("Loss Curves")
-            plt.xlabel("Step No.")
-            plt.ylabel("Loss value")
-            plt.plot(list(range(1, len(trainingLossCurve) + 1)),
-                     trainingLossCurve, "blue", label="Train")
-            plt.plot(list(range(1, len(validationLossCurve) + 1)),
-                     validationLossCurve, "red", label="Validation")
-            plt.legend()
-            plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-loss.png".format(step))
-            plt.close()
-
-            plt.figure()
-            plt.title("Acc Curves")
-            plt.xlabel("Step No.")
-            plt.ylabel("Acc")
-            plt.plot(list(range(1, len(trainingAccCurve) + 1)),
-                     trainingAccCurve, "blue", label="Train")
-            plt.plot(list(range(1, len(validationAccCurve) + 1)),
-                     validationAccCurve, "red", label="Validation")
-            plt.legend()
-            plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
-            plt.close()
+            # plt.figure()
+            # plt.title("Loss Curves")
+            # plt.xlabel("Step No.")
+            # plt.ylabel("Loss value")
+            # plt.plot(list(range(1, len(trainingLossCurve) + 1)),
+            #          trainingLossCurve, "blue", label="Train")
+            # plt.plot(list(range(1, len(validationLossCurve) + 1)),
+            #          validationLossCurve, "red", label="Validation")
+            # plt.legend()
+            # plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-loss.png".format(step))
+            # plt.close()
+            #
+            # plt.figure()
+            # plt.title("Acc Curves")
+            # plt.xlabel("Step No.")
+            # plt.ylabel("Acc")
+            # plt.plot(list(range(1, len(trainingAccCurve) + 1)),
+            #          trainingAccCurve, "blue", label="Train")
+            # plt.plot(list(range(1, len(validationAccCurve) + 1)),
+            #          validationAccCurve, "red", label="Validation")
+            # plt.legend()
+            # plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
+            # plt.close()
 
     print("\nTraining Done.\n")
     return
