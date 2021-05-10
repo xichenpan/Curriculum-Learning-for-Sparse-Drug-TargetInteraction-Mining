@@ -1,19 +1,15 @@
 import pandas as pd
 import pickle
-
+# from utils.parser import *
 import sys
+import numpy as np
 
-sys.path.append("..")
-from utils.parser import *
-
-
-def decompose(dataset):
-    args = parse_args()
-    data = pd.read_csv("../" + args.data_dir + "/" + dataset + "/" + dataset + ".csv").values.tolist()
+if __name__ == '__main__':
+    data = pd.read_csv('./data/train.csv').values.tolist()
     drug, target, label = list(zip(*data))
 
-    drug_set = list(set(drug))
-    target_set = list(set(target))
+    drug_set = sorted(list(set(drug)))
+    target_set = sorted(list(set(target)))
 
     drug2idx = {
         drug: idx for idx, drug in enumerate(drug_set)
@@ -22,23 +18,40 @@ def decompose(dataset):
         target: idx for idx, target in enumerate(target_set)
     }
 
-    with open("../" + args.data_dir + "/" + dataset + '/drug.pkl', 'wb') as f:
+    with open('./data/drug.pkl', 'wb') as f:
         pickle.dump(drug_set, f)
 
-    with open("../" + args.data_dir + "/" + dataset + '/target.pkl', 'wb') as f:
+    with open('./data/target.pkl', 'wb') as f:
         pickle.dump(target_set, f)
 
     pairs = []
-
     for drug, target, label in data:
         drug_id = drug2idx[drug]
         target_id = target2idx[target]
         pairs.append([drug_id, target_id, label])
 
-    with open("../" + args.data_dir + "/" + dataset + '/pairs.pkl', 'wb') as f:
+    np.random.seed(0)
+    isTrain_mask = np.random.binomial(n=1, p=0.9, size=len(pairs))
+
+    train_pos, train_neg, test_pos, test_neg = 0, 0, 0, 0
+    for i in range(len(pairs)):
+        pairs[i].append(isTrain_mask[i])
+
+        if pairs[i][2] == 1:
+            if isTrain_mask[i] == 1:
+                train_pos += 1
+            else:
+                test_pos += 1
+        else:
+            if isTrain_mask[i] == 1:
+                train_neg += 1
+            else:
+                test_neg += 1
+
+    with open('./data/pairs.pkl', 'wb') as f:
         pickle.dump(pairs, f)
 
-
-if __name__ == '__main__':
-    decompose("train")
-    decompose("val")
+    print('# TrainPositive = %d' % train_pos)
+    print('# TrainNegative = %d' % train_neg)
+    print('# TestPositive = %d' % test_pos)
+    print('# TestNegative = %d' % test_neg)

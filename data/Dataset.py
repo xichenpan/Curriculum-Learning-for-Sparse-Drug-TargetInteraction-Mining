@@ -5,6 +5,7 @@ import json
 import numpy as np
 import logging
 import sys
+
 sys.path.append("..")
 from utils.protein_embedding import *
 
@@ -28,10 +29,10 @@ class DrugDataset(Dataset):
         super(DrugDataset, self).__init__()
         self.edge_weight = edge_weight
         self.use_hcount = use_hcount
-        self.data = pkl.load(open(datadir + "/" + dataset + '/drug.pkl', 'rb'))
+        self.data = pkl.load(open('./data/drug.pkl', 'rb'))
 
-        element = json.load(open(datadir + "/" + dataset + '/element.json'))
-        hcount = json.load(open(datadir + "/" + dataset + '/hcount.json'))
+        element = json.load(open('./data/element.json'))
+        hcount = json.load(open('./data/hcount.json'))
 
         self.element2idx = {ele: i for i, ele in enumerate(element)}
         self.hcount2idx = {count: i for i, count in enumerate(hcount)}
@@ -73,7 +74,7 @@ class DrugDataset(Dataset):
 class TargetDataset(Dataset):
     def __init__(self, dataset, datadir, pretrained_dir, device, **kwargs):
         super(TargetDataset, self).__init__()
-        self.data = pkl.load(open(datadir + "/" + dataset + '/target.pkl', 'rb'))
+        self.data = pkl.load(open('./data/target.pkl', 'rb'))
         self.device = device
         lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
         model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
@@ -94,19 +95,24 @@ class TargetDataset(Dataset):
         import time
         s = time.time()
         protein_embedding = embedding(protein_string, self.model, self.device)
-        print(time.time()-s)
+        print(time.time() - s)
         return protein_embedding
 
 
 class DrugTargetInteractionDataset(Dataset):
     def __init__(self, dataset, datadir, stepSize, pretrained_dir, device, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
-        self.pairs = pkl.load(open(datadir + "/" + dataset + '/pairs.pkl', 'rb'))
+        self.pairs = pkl.load(open('./data/pairs.pkl', 'rb'))
         self.dataset = dataset
         self.stepSize = stepSize
         self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)
         self.target_dataset = TargetDataset(dataset, datadir, pretrained_dir, device, **kwargs)
+        if self.dataset == "train":
+            self.pairs = [info for info in self.pairs if info[3] == 1]
+        else:
+            self.pairs = [info for info in self.pairs if info[3] == 0]
         print('Load DTI Dataset Complete')
+        print('# %s pairs = %d' % (self.dataset, len(self.pairs)))
         return
 
     def __getitem__(self, index):
@@ -124,6 +130,6 @@ class DrugTargetInteractionDataset(Dataset):
 
     def __len__(self):
         if self.dataset == "train":
-            return self.stepSize
+            return self.stepize
         else:
             return len(self.pairs)
