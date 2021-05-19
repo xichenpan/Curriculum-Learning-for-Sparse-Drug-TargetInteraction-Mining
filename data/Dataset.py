@@ -8,6 +8,11 @@ import sys
 
 sys.path.append("..")
 from utils.protein_embedding import *
+from src.alphabets import Uniprot21
+from src.models.sequence import *
+from src.models.comparison import *
+from src.models.embedding import *
+
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 logger = logging.getLogger('Data')
@@ -72,31 +77,26 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, dataset, datadir, pretrained_dir, device, **kwargs):
+    def __init__(self, dataset, datadir, pretrained_dir, deivce, **kwargs):
         super(TargetDataset, self).__init__()
-        self.data = pkl.load(open('./data/target.pkl', 'rb'))
-        self.device = device
-        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
-        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
-        model = OrdinalRegression(embedding=model_, n_classes=5)
-        tmp = torch.load(pretrained_dir)
-        model.load_state_dict(tmp)
-        model = load_model(model, device=device)
-        self.model = model
-        print('Load Target Dataset Complete')
-        return
+        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
+        self.alphabet = Uniprot21()
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         protein_string = self.data[index]
-        protein_string = bytes(protein_string, encoding='utf8')
-        import time
-        s = time.time()
-        protein_embedding = embedding(protein_string, self.model, self.device)
-        print(time.time() - s)
-        return protein_embedding
+
+        x = bytes(protein_string, encoding='utf8')
+        src_len = len(x)
+
+        x = x.upper()
+        # convert to alphabet index
+        x = self.alphabet.encode(x)
+        x = torch.from_numpy(x)
+
+        return x, src_len
 
 
 class DrugTargetInteractionDataset(Dataset):
