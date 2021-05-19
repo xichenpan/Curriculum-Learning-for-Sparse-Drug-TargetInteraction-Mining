@@ -3,9 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import os
-import sys
-
-sys.path.append("..")
 from src.alphabets import Uniprot21
 from src.models.sequence import *
 from src.models.comparison import *
@@ -42,6 +39,7 @@ def unstack_lstm(lstm):
 def embed_stack(x, lm_embed, lstm_stack, proj, include_lm=True, final_only=False):
     zs = []
 
+
     x_onehot = x.new(x.size(0), x.size(1), 21).float().zero_()
     x_onehot.scatter_(2, x.unsqueeze(2), 1)
     zs.append(x_onehot)
@@ -55,37 +53,36 @@ def embed_stack(x, lm_embed, lstm_stack, proj, include_lm=True, final_only=False
             h, _ = lstm(h)
             if not final_only:
                 zs.append(h)
-        h = proj(h.squeeze(0)).unsqueeze(0)
+        h_shape = h.shape  # bs * src_length * dim
+        h = h.reshape(-1, h.shape[-1])  # (bs * src_length) * dim
+        h = proj(h)  # (bs * src_length) * 100
+        h = h.reshape(h_shape[0], h_shape[1], -1)  # bs * src_length * 100
         zs.append(h)
 
     z = torch.cat(zs, 2)
     return z
 
-
 def embed_sequence(x, lm_embed, lstm_stack, proj, include_lm=True, final_only=False
-                   , pool='none', device=0):
+                   ,pool='none', device=0):
+
     if len(x) == 0:
         return None
 
-    alphabet = Uniprot21()
-    x = x.upper()
-    # convert to alphabet index
-    x = alphabet.encode(x)
-    x = torch.from_numpy(x)
+
     if isinstance(device, int):
         x = x.to(device)
 
     # embed the sequence
     with torch.no_grad():
-        x = x.long().unsqueeze(0)
         z = embed_stack(x, lm_embed, lstm_stack, proj
-                        , include_lm=include_lm, final_only=final_only)
+                       , include_lm=include_lm, final_only=final_only)
+        print(z.shape)
         # pool if needed
-        z = z.squeeze(0)
+        # z = z.squeeze(0)
         if pool == 'sum':
             z = z.sum(0)
         elif pool == 'max':
-            z, _ = z.max(0)
+            z,_ = z.max(0)
         elif pool == 'avg':
             z = z.mean(0)
         # z = z.cpu().numpy()
@@ -108,27 +105,35 @@ def load_model(model, device=0):
     return lm_embed, lstm_stack, proj
 
 
+
 def embedding(x, model, device):
-    """
+   """
+
    :param x: input protein sequence : batch * length
    :param model: (lm_embed, lstm_stack, proj)
    :param device: GPU:0,1,2,3
    :return: z
    """
-    lm_embed, lstm_stack, proj = model
-    z = embed_sequence(x, lm_embed, lstm_stack, proj, include_lm=True, final_only=True, pool=None, device=device)
-    return z
+   lm_embed, lstm_stack, proj = model
+   z = embed_sequence(x, lm_embed, lstm_stack, proj
+                      , include_lm=True, final_only=True
+                      , pool=None, device=device)
+   return z
+
 
 
 if __name__ == "__main__":
+
     """-----load model----"""
     root = "/home/htxue/data/3E-DrugTargetInteraction/"
     model_path = os.path.join(root, "pretrained-model/model_weight.bin")
     device = 0
 
+
     lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
     model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
     model = OrdinalRegression(embedding=model_, n_classes=5)
+
 
     print(model)
 
@@ -136,16 +141,20 @@ if __name__ == "__main__":
     model.load_state_dict(tmp)
     """---------------"""
 
-    model = load_model(model, device=device)  # decompose the model into three parts
+    model = load_model(model, device=device) # decompose the model into three parts
 
-    x = b'ABCDABDD'
 
     import time
-
     st = time.time()
+
+    x = torch.ones(1000, 30)
+
+    x = x.long()
 
     z = embedding(x, model, device)
 
     print(time.time() - st)
     print(z)
     print(z.shape)
+
+
