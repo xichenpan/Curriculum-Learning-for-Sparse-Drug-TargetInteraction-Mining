@@ -79,6 +79,23 @@ class DTNet(nn.Module):
             nn.ReLU(),
             nn.Linear(dModel // 2, 2)
         )
+        
+        
+        root = "../"
+        model_path = os.path.join(root, "pretrained-model/model_weight.bin")
+
+        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
+        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
+        model = OrdinalRegression(embedding=model_, n_classes=5)
+
+        print(model)
+
+        tmp = torch.load(os.path.join(root, model_path))
+        model.load_state_dict(tmp)
+
+        self.pretrained_model = load_model(model, device=None)  # decompose the model into three parts
+        
+        
         return
 
     def forward(self, druginputBatch, targetinputBatch):
