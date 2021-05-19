@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from models.GraphModels import GraphNeuralNetwork
-
+from utils.protein_embedding import *
 
 class ModalityNormalization(nn.Module):
     """
@@ -95,6 +95,7 @@ class DTNet(nn.Module):
 
         self.pretrained_model = load_model(model, device=None)  # decompose the model into three parts
         
+        # targetinputBatch = embedding(targetinputBatch, self.pretrained_model, device)
         
         return
 
