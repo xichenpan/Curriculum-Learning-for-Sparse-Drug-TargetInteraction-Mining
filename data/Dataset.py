@@ -77,7 +77,7 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, dataset, datadir, pretrained_dir, deivce, **kwargs):
+    def __init__(self, dataset, datadir, pretrained_dir, **kwargs):
         super(TargetDataset, self).__init__()
         self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
         self.alphabet = Uniprot21()
@@ -106,7 +106,7 @@ class DrugTargetInteractionDataset(Dataset):
         self.dataset = dataset
         self.stepSize = stepSize
         self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)
-        self.target_dataset = TargetDataset(dataset, datadir, pretrained_dir, device, **kwargs)
+        self.target_dataset = TargetDataset(dataset, datadir, pretrained_dir, **kwargs)
         if self.dataset == "train":
             self.pairs = [info for info in self.pairs if info[3] == 1]
         else:
