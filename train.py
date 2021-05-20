@@ -37,8 +37,6 @@ def main():
         "train",
         args.data_dir,
         args.step_size,
-        args.pretrain_dir,
-        device,
         edge_weight=not args.no_edge_weight,
         use_hcount=not args.no_hcount
     )
@@ -54,8 +52,6 @@ def main():
         "val",
         args.data_dir,
         args.step_size,
-        args.pretrain_dir,
-        device,
         edge_weight=not args.no_edge_weight,
         use_hcount=not args.no_hcount
     )
@@ -69,7 +65,7 @@ def main():
 
     # declaring the model, optimizer, scheduler and the loss function
     model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
-                  args.graph_depth, args.GAT_head, args.target_in_size)
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, device)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR,
