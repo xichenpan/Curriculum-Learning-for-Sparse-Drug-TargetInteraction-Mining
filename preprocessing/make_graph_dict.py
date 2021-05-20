@@ -6,15 +6,14 @@ import json
 import sys
 
 sys.path.append("..")
-from utils.parser import *
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 
 
-def make_graph_dict(dataset):
+def make_graph_dict():
     MAX_NODES = 0
-    args = parse_args()
-    durgs = pkl.load(open("../" + args.data_dir + "/" + dataset + '/drug.pkl', 'rb'))
+    # args = parse_args()
+    durgs = pkl.load(open('./data/drug.pkl', 'rb'))
 
     element = set()
     hcount = set()
@@ -32,12 +31,11 @@ def make_graph_dict(dataset):
     element = sorted(list(element))
     hcount = sorted(list(hcount))
 
-    with open("../" + args.data_dir + "/" + dataset + '/element.json', 'w') as f:
+    with open('./data/element.json', 'w') as f:
         f.write(json.dumps(element))
-    with open("../" + args.data_dir + "/" + dataset + '/hcount.json', 'w') as f:
+    with open('./data/hcount.json', 'w') as f:
         f.write(json.dumps(hcount))
 
 
 if __name__ == '__main__':
-    make_graph_dict("train")
-    make_graph_dict("val")
+    make_graph_dict()
