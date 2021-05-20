@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pad_sequence
 from models.GraphModels import GraphNeuralNetwork
 from utils.protein_embedding import *
 
+
 class ModalityNormalization(nn.Module):
     """
     batch*frame*features
@@ -23,9 +24,9 @@ class DTNet(nn.Module):
     """
     """
 
-    def __init__(self, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize):
+    def __init__(self, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
+                 device):
         super(DTNet, self).__init__()
-
         # drug-GNN
         self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
@@ -36,7 +37,7 @@ class DTNet(nn.Module):
             head=GAT_head
         )
         self.drugConv = nn.Sequential(
-            nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
+            nn.Conv1d(dModel, dModel, kernel_size=(1,), stride=(1,), padding=(0,)),
             nn.LayerNorm(dModel),
             nn.ReLU()
         )
@@ -53,9 +54,17 @@ class DTNet(nn.Module):
         #     nn.Conv1d(dModel, dModel, kernel_size=1, stride=1, padding=0),
         # )
         # target-pretrained model
+        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
+        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
+        model = OrdinalRegression(embedding=model_, n_classes=5)
+
+        tmp = torch.load(pretrain_dir)
+        model.load_state_dict(tmp)
+        self.pretrained_model = load_model(model, device=device)
+
         self.target_net = None
         self.targetConv = nn.Sequential(
-            nn.Conv1d(targetinSize, dModel, kernel_size=1, stride=1, padding=0),
+            nn.Conv1d(targetinSize, dModel, kernel_size=(1,), stride=(1,), padding=(0,)),
             nn.LayerNorm(dModel),
             nn.ReLU()
         )
@@ -79,27 +88,12 @@ class DTNet(nn.Module):
             nn.ReLU(),
             nn.Linear(dModel // 2, 2)
         )
-        
-        
-        root = "../"
-        model_path = os.path.join(root, "pretrained-model/model_weight.bin")
-
-        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
-        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
-        model = OrdinalRegression(embedding=model_, n_classes=5)
-
-        print(model)
-
-        tmp = torch.load(os.path.join(root, model_path))
-        model.load_state_dict(tmp)
-
-        self.pretrained_model = load_model(model, device=None)  # decompose the model into three parts
-        
-        # targetinputBatch = embedding(targetinputBatch, self.pretrained_model, device)
-        
         return
 
     def forward(self, druginputBatch, targetinputBatch):
+
+        # targetinputBatch = embedding(targetinputBatch, self.pretrained_model, device)
+
         drug_padding_mask = ~druginputBatch[2]
         druginputBatch = self.drug_net(druginputBatch[0], druginputBatch[1])
         druginputBatch = druginputBatch.transpose(1, 2)
@@ -110,6 +104,7 @@ class DTNet(nn.Module):
 
         target_padding_mask = ~targetinputBatch[1]
         targetinputBatch = targetinputBatch[0]
+        targetinputBatch = embedding(targetinputBatch, self.pretrained_model, targetinputBatch.device)
         targetinputBatch = targetinputBatch.transpose(1, 2)
         targetinputBatch = self.drugConv(targetinputBatch)
         targetinputBatch = targetinputBatch.transpose(2, 1)
@@ -120,11 +115,11 @@ class DTNet(nn.Module):
             list(drug_padding_mask.shape).append(druginputBatch.shape[-1]))
         target_padding_mask = target_padding_mask.unsqueeze(-1).expand(
             list(target_padding_mask.shape).append(targetinputBatch.shape[-1]))
-        druginputBatch = druginputBatch*drug_padding_mask
-        targetinputBatch = targetinputBatch*target_padding_mask
+        druginputBatch = druginputBatch * drug_padding_mask
+        targetinputBatch = targetinputBatch * target_padding_mask
 
-        druginputBatch = druginputBatch.mean(1)/drug_len
-        targetinputBatch = targetinputBatch.mean(1)/target_len
+        druginputBatch = druginputBatch.mean(1) / drug_len
+        targetinputBatch = targetinputBatch.mean(1) / target_len
         druginputBatch = self.ModalityNormalization(druginputBatch)
         targetinputBatch = self.ModalityNormalization(targetinputBatch)
 
