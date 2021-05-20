@@ -77,7 +77,7 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, dataset, datadir, pretrained_dir, **kwargs):
+    def __init__(self, dataset, datadir, **kwargs):
         super(TargetDataset, self).__init__()
         self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
         self.alphabet = Uniprot21()
@@ -89,24 +89,22 @@ class TargetDataset(Dataset):
         protein_string = self.data[index]
 
         x = bytes(protein_string, encoding='utf8')
-        src_len = len(x)
 
         x = x.upper()
         # convert to alphabet index
         x = self.alphabet.encode(x)
         x = torch.from_numpy(x)
-
-        return x, src_len
+        return x
 
 
 class DrugTargetInteractionDataset(Dataset):
-    def __init__(self, dataset, datadir, stepSize, pretrained_dir, device, **kwargs):
+    def __init__(self, dataset, datadir, stepSize, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
         self.pairs = pkl.load(open('./data/pairs.pkl', 'rb'))
         self.dataset = dataset
         self.stepSize = stepSize
         self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)
-        self.target_dataset = TargetDataset(dataset, datadir, pretrained_dir, **kwargs)
+        self.target_dataset = TargetDataset(dataset, datadir, **kwargs)
         if self.dataset == "train":
             self.pairs = [info for info in self.pairs if info[3] == 1]
         else:
