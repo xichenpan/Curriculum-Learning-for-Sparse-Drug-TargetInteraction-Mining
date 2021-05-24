@@ -33,25 +33,39 @@ if __name__ == '__main__':
     np.random.seed(0)
     isTrain_mask = np.random.binomial(n=1, p=0.9, size=len(pairs))
 
-    train_pos, train_neg, test_pos, test_neg = 0, 0, 0, 0
+    train_pos_pairs = []
+    train_neg_pairs = []
+    val_pos_pairs = []
+    val_neg_pairs = []
+
     for i in range(len(pairs)):
         pairs[i].append(isTrain_mask[i])
 
         if pairs[i][2] == 1:
             if isTrain_mask[i] == 1:
-                train_pos += 1
+                train_pos_pairs.append(pairs[i][:-1])
             else:
-                test_pos += 1
+                val_pos_pairs.append(pairs[i][:-1])
         else:
             if isTrain_mask[i] == 1:
-                train_neg += 1
+                train_neg_pairs.append(pairs[i][:-1])
             else:
-                test_neg += 1
+                val_neg_pairs.append(pairs[i][:-1])
 
     with open('./data/pairs.pkl', 'wb') as f:
         pickle.dump(pairs, f)
 
-    print('# TrainPositive = %d' % train_pos)
-    print('# TrainNegative = %d' % train_neg)
-    print('# TestPositive = %d' % test_pos)
-    print('# TestNegative = %d' % test_neg)
+    with open('./data/train_pos_pairs.pkl', 'wb') as f:
+        pickle.dump(train_pos_pairs, f)
+    with open('./data/train_neg_pairs.pkl', 'wb') as f:
+        pickle.dump(train_neg_pairs, f)
+
+    with open('./data/val_pos_pairs.pkl', 'wb') as f:
+        pickle.dump(val_pos_pairs, f)
+    with open('./data/val_neg_pairs.pkl', 'wb') as f:
+        pickle.dump(val_neg_pairs, f)
+
+    print('# TrainPositive = %d' % len(train_pos_pairs))
+    print('# TrainNegative = %d' % len(train_neg_pairs))
+    print('# TestPositive = %d' % len(val_pos_pairs))
+    print('# TestNegative = %d' % len(val_neg_pairs))

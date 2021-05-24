@@ -73,14 +73,14 @@ class GraphNeuralNetwork(nn.Module):
     def __init__(self, in_dim, out_dim, layer_type='GCN', num_pre=1, num_graph_layer=1, batchnorm=True, head=1,
                  **kwargs):
         """
-        :param in_dim: input dimensionality
-        :param out_dim: output dimensionality, as well as all hidden feature
-        :param batchnorm: whether to use BN in pre-MLP
-        :param num_pre: number of pre-MLP layers
-        :param layer_type: GCN or GAT
-        :param num_graph_layer: number of graph model layers
-        :param head: attention head in GAT
-        :param kwargs:
+            :param in_dim: input dimensionality
+            :param out_dim: output dimensionality, as well as all hidden feature
+            :param batchnorm: whether to use BN in pre-MLP
+            :param num_pre: number of pre-MLP layers
+            :param layer_type: GCN or GAT
+            :param num_graph_layer: number of graph model layers
+            :param head: attention head in GAT
+            :param kwargs:
         """
         super(GraphNeuralNetwork, self).__init__()
         self.PreMLP = nn.ModuleList(
@@ -98,13 +98,10 @@ class GraphNeuralNetwork(nn.Module):
 
     def forward(self, node_embedding, adj):
         norm_adj = adj + torch.eye(adj.shape[-1]).to(adj.device)
-        inv_sqrt_diag = norm_adj.diagonal(dim1=-2, dim2=-1).diag_embed().pow(-0.5)
+        inv_sqrt_diag = torch.diag_embed(1 / torch.sqrt(torch.sum(norm_adj, dim=-1)))
         norm_adj = torch.bmm(torch.bmm(inv_sqrt_diag, norm_adj), inv_sqrt_diag)
-
         for module in self.PreMLP:
             node_embedding = module(node_embedding)
-
         for module in self.GraphLayers:
             node_embedding = module(node_embedding, adj=adj, norm_adj=norm_adj)
-
         return node_embedding

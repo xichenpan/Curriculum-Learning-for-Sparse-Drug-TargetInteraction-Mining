@@ -19,8 +19,6 @@ from tensorboardX import SummaryWriter
 def main():
     # load args
     args = parse_args()
-    # not show curve
-    matplotlib.use("Agg")
     # set seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -33,10 +31,10 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and validation datasets and their corresponding dataloaders
+
     trainData = DrugTargetInteractionDataset(
         "train",
-        args.data_dir,
-        args.step_size,
+        args.neg_rate,
         edge_weight=not args.no_edge_weight,
         use_hcount=not args.no_hcount
     )
@@ -50,8 +48,7 @@ def main():
 
     valData = DrugTargetInteractionDataset(
         "val",
-        args.data_dir,
-        args.step_size,
+        args.neg_rate,
         edge_weight=not args.no_edge_weight,
         use_hcount=not args.no_hcount
     )
@@ -65,7 +62,7 @@ def main():
 
     # declaring the model, optimizer, scheduler and the loss function
     model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
-                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, device)
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR,
@@ -86,61 +83,46 @@ def main():
     print("Number of trainable parameters in the model = %d\n" % numTrainableParams)
     print("\nTraining the model .... \n")
 
+    if os.path.exists(os.path.join('checkpoints', args.save_dir)):
+        shutil.rmtree(os.path.join('checkpoints', args.save_dir))
     os.makedirs(os.path.join('checkpoints', args.save_dir))
     writer = SummaryWriter(os.path.join('logs', args.save_dir))
     for step in range(args.num_steps):
 
         # train the model for one step
-        trainingLoss, trainingAcc = train(model, trainLoader, optimizer, loss_function, device)
-        trainingLossCurve.append(trainingLoss)
-        trainingAccCurve.append(trainingAcc)
+        trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = \
+            train(model, trainLoader, optimizer, loss_function, device, writer, step)
+        writer.add_scalar("train_score/acc", trainAcc, step)
+        writer.add_scalar("train_score/F1", trainF1, step)
+        writer.add_scalar("train_loss/loss", trainLoss, step)
+        writer.add_scalar("train_score/TP", trainTP, step)
+        writer.add_scalar("train_score/FP", trainFP, step)
+        writer.add_scalar("train_score/FN", trainFN, step)
+        writer.add_scalar("train_score/TN", trainTN, step)
+        print("Step: %03d  Train|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d"
+              % (step, trainLoss, trainAcc, trainF1, trainTP, trainTN, trainFP, trainFN))
 
         # evaluate the model on validation set
-        validationLoss, validationAcc = evaluate(model, valLoader, loss_function, device)
-        validationLossCurve.append(validationLoss)
-        validationAccCurve.append(validationAcc)
-
-        # printing the stats after each step
-        print("Step: %03d || Tr.Loss: %.6f  Val.Loss: %.6f || Tr.Acc: %.3f  Val.Acc: %.3f"
-              % (step, trainingLoss, validationLoss, trainingAcc, validationAcc))
+        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = \
+            evaluate(model, valLoader, loss_function, device)
+        writer.add_scalar("val_score/acc", valAcc, step)
+        writer.add_scalar("val_score/F1", valF1, step)
+        writer.add_scalar("val_loss/loss", valLoss, step)
+        writer.add_scalar("val_score/TP", valTP, step)
+        writer.add_scalar("val_score/FP", valFP, step)
+        writer.add_scalar("val_score/FN", valFN, step)
+        writer.add_scalar("val_score/TN", valTN, step)
+        print("Step: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d"
+              % (step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
 
         # make a scheduler step
-        scheduler.step(validationAcc)
+        scheduler.step(valAcc)
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
         if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):
-            writer.add_scalar("train/acc", trainingAcc, step)
-            writer.add_scalar("train/loss", trainingLoss, step)
-            writer.add_scalar("val/acc", validationAcc, step)
-            writer.add_scalar("val/loss", validationLoss, step)
-
             savePath = args.code_dir + "checkpoints/{}/train-step_{:04d}-Acc_{:.3f}.pt".format(args.save_dir, step,
-                                                                                               validationAcc)
+                                                                                               valAcc)
             torch.save(model.state_dict(), savePath)
-
-            # plt.figure()
-            # plt.title("Loss Curves")
-            # plt.xlabel("Step No.")
-            # plt.ylabel("Loss value")
-            # plt.plot(list(range(1, len(trainingLossCurve) + 1)),
-            #          trainingLossCurve, "blue", label="Train")
-            # plt.plot(list(range(1, len(validationLossCurve) + 1)),
-            #          validationLossCurve, "red", label="Validation")
-            # plt.legend()
-            # plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-loss.png".format(step))
-            # plt.close()
-            #
-            # plt.figure()
-            # plt.title("Acc Curves")
-            # plt.xlabel("Step No.")
-            # plt.ylabel("Acc")
-            # plt.plot(list(range(1, len(trainingAccCurve) + 1)),
-            #          trainingAccCurve, "blue", label="Train")
-            # plt.plot(list(range(1, len(validationAccCurve) + 1)),
-            #          validationAccCurve, "red", label="Validation")
-            # plt.legend()
-            # plt.savefig(args.code_dir + "checkpoints/plots/train-step_{:04d}-Acc.png".format(step))
-            # plt.close()
 
     print("\nTraining Done.\n")
     return

@@ -13,7 +13,6 @@ from src.models.sequence import *
 from src.models.comparison import *
 from src.models.embedding import *
 
-
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
 logger = logging.getLogger('Data')
 
@@ -21,7 +20,7 @@ MAX_NODE_SIZE = 629
 
 
 class DrugDataset(Dataset):
-    def __init__(self, dataset, datadir, edge_weight=True, use_hcount=True, **kwargs):
+    def __init__(self, edge_weight=True, use_hcount=True, **kwargs):
         """
         :arg
             edge_weight:
@@ -46,8 +45,8 @@ class DrugDataset(Dataset):
             self.embedding_dim = len(self.element2idx) + len(self.hcount2idx)
         else:
             self.embedding_dim = len(self.element2idx)
-
         print('Load Drug Dataset Complete')
+        return
 
     def __len__(self):
         return len(self.data)
@@ -77,10 +76,12 @@ class DrugDataset(Dataset):
 
 
 class TargetDataset(Dataset):
-    def __init__(self, dataset, datadir, **kwargs):
+    def __init__(self, **kwargs):
         super(TargetDataset, self).__init__()
-        self.data = pkl.load(open("../" + datadir + "/" + dataset + '/target.pkl', 'rb'))
+        self.data = pkl.load(open("./data/target.pkl", 'rb'))
         self.alphabet = Uniprot21()
+        print('Load Target Dataset Complete')
+        return
 
     def __len__(self):
         return len(self.data)
@@ -98,36 +99,43 @@ class TargetDataset(Dataset):
 
 
 class DrugTargetInteractionDataset(Dataset):
-    def __init__(self, dataset, datadir, stepSize, **kwargs):
+    def __init__(self, dataset, neg_rate, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
-        self.pairs = pkl.load(open('./data/pairs.pkl', 'rb'))
+        self.pos_pairs = pkl.load(open('./data/%s_pos_pairs.pkl' % dataset, 'rb'))
+        self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % dataset, 'rb'))
         self.dataset = dataset
-        self.stepSize = stepSize
-        self.drug_dataset = DrugDataset(dataset, datadir, **kwargs)
-        self.target_dataset = TargetDataset(dataset, datadir, **kwargs)
-        if self.dataset == "train":
-            self.pairs = [info for info in self.pairs if info[3] == 1]
-        else:
-            self.pairs = [info for info in self.pairs if info[3] == 0]
+        self.neg_rate = neg_rate
+        self.drug_dataset = DrugDataset(**kwargs)
+        self.target_dataset = TargetDataset(**kwargs)
         print('Load DTI Dataset Complete')
-        print('# %s pairs = %d' % (self.dataset, len(self.pairs)))
+        print('# %s pos pairs = %d' % (self.dataset, len(self.pos_pairs)))
+        print('# %s neg pairs = %d' % (self.dataset, len(self.neg_pairs)))
         return
 
     def __getitem__(self, index):
-        if self.dataset == "train":
-            # index goes from 0 to stepSize-1
-            # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
-            # fetch the sample at position 'index' in this randomly selected partition
-            base = self.stepSize * np.arange(int(len(self.pairs) / self.stepSize) + 1)
-            ixs = base + index
-            ixs = ixs[ixs < len(self.pairs)]
-            index = ixs[0] if len(ixs) == 1 else np.random.choice(ixs)
+        # if self.dataset == "train":
+        # index goes from 0 to stepSize-1
+        # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
+        # fetch the sample at position 'index' in this randomly selected partition
+        if index >= len(self.pos_pairs):
+            if self.dataset in ['val', 'val_full']:
+                index = index - len(self.pos_pairs)
+            else:
+                index = np.random.randint(0, len(self.neg_pairs))
+            drug_idx, target_idx, label = self.neg_pairs[index][:]
+        else:
+            drug_idx, target_idx, label = self.pos_pairs[index][:]
 
-        drug_idx, target_idx, label = self.pairs[index]
         return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
 
     def __len__(self):
-        if self.dataset == "train":
-            return self.stepize
+        if self.dataset == 'val':
+            return 2 * len(self.pos_pairs)
+        elif self.dataset == 'val_full':
+            return len(self.pos_pairs) + len(self.neg_pairs)
         else:
-            return len(self.pairs)
+            return (1 + self.neg_rate) * len(self.pos_pairs)
+        # if self.dataset == "train":
+        #     return self.stepSize
+        # else:
+        #     return len(self.pairs)
