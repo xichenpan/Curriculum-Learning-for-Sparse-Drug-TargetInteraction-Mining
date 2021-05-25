@@ -1,9 +1,11 @@
+import torch
 from torch.utils.data import Dataset
 import pickle as pkl
 import pysmiles
 import json
 import numpy as np
 import logging
+import h5py
 import sys
 
 sys.path.append("..")
@@ -68,13 +70,16 @@ class DrugDataset(Dataset):
             adjacent_matrix[a, b] = val
             adjacent_matrix[b, a] = val
 
-        drug = (node_embedding, adjacent_matrix, padding_mask)
+        drug = (torch.from_numpy(node_embedding), torch.from_numpy(adjacent_matrix), torch.from_numpy(padding_mask))
         return drug
 
 
 class TargetDataset(Dataset):
-    def __init__(self, **kwargs):
+    def __init__(self, target_h5_dir, freeze_protein_embedding, **kwargs):
         super(TargetDataset, self).__init__()
+        self.freeze_protein_embedding = freeze_protein_embedding
+        if freeze_protein_embedding:
+            self.h5 = target_h5_dir
         self.data = pkl.load(open("./data/target.pkl", 'rb'))
         self.alphabet = Uniprot21()
         print('Load Target Dataset Complete')
@@ -84,19 +89,22 @@ class TargetDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        protein_string = self.data[index]
-
-        x = bytes(protein_string, encoding='utf8')
-
-        x = x.upper()
-        # convert to alphabet index
-        x = self.alphabet.encode(x)
-        x = torch.from_numpy(x)
-        return x
+        if self.freeze_protein_embedding:
+            with h5py.File(self.h5, "r") as f:
+                x = np.array(f['target'][index]).reshape(-1, 121)
+            return torch.tensor(x)
+        else:
+            protein_string = self.data[index]
+            x = bytes(protein_string, encoding='utf8')
+            x = x.upper()
+            # convert to alphabet index
+            x = self.alphabet.encode(x)
+            x = torch.from_numpy(x)
+            return x
 
 
 class DrugTargetInteractionDataset(Dataset):
-    def __init__(self, dataset, neg_rate, **kwargs):
+    def __init__(self, dataset, neg_rate, target_h5_dir, freeze_protein_embedding, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
         if dataset == 'val_full':
             pkl_name = 'val'
@@ -108,7 +116,7 @@ class DrugTargetInteractionDataset(Dataset):
         self.dataset = dataset
         self.neg_rate = neg_rate
         self.drug_dataset = DrugDataset(**kwargs)
-        self.target_dataset = TargetDataset(**kwargs)
+        self.target_dataset = TargetDataset(target_h5_dir, freeze_protein_embedding, **kwargs)
         print('Load DTI Dataset Complete')
         print('# %s pos pairs = %d' % (self.dataset, len(self.pos_pairs)))
         print('# %s neg pairs = %d' % (self.dataset, len(self.neg_pairs)))

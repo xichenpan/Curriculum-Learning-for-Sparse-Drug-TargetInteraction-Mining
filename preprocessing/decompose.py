@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 if __name__ == '__main__':
-    data = pd.read_csv('./data/train.csv').values.tolist()
+    data = pd.read_csv('../data/train.csv').values.tolist()
     drug, target, label = list(zip(*data))
 
     drug_set = sorted(list(set(drug)))

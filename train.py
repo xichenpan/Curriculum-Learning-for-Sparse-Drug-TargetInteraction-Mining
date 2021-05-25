@@ -31,14 +31,16 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and validation datasets and their corresponding dataloaders
-    trainData = DrugTargetInteractionDataset("train", args.neg_rate, edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
+    trainData = DrugTargetInteractionDataset("train", args.neg_rate, args.target_h5_dir, args.freeze_protein_embedding,
+                                             edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     trainLoader = DataLoader(trainData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=True, **kwargs)
-    valData = DrugTargetInteractionDataset("val", args.neg_rate, edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
+    valData = DrugTargetInteractionDataset("val", args.neg_rate, args.target_h5_dir, args.freeze_protein_embedding,
+                                           edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     valLoader = DataLoader(valData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
     # declaring the model, optimizer, scheduler and the loss function
-    model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth, args.graph_depth, args.GAT_head,
-                  args.target_in_size, args.pretrain_dir, args.gpu_id)
+    model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.model_name)
     model.to(device)
 
     # Optimizer & scheduler

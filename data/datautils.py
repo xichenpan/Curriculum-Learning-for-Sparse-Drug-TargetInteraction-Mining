@@ -7,9 +7,9 @@ def collate_fn(dataBatch):
     Collate function definition used in Dataloaders.
     """
     # drug
-    drug_node_embedding = torch.tensor([data[0][0] for data in dataBatch])
-    drug_adjacent_matrix = torch.tensor([data[0][1] for data in dataBatch])
-    drug_padding_mask = torch.tensor([data[0][2] for data in dataBatch])
+    drug_node_embedding = torch.stack([data[0][0] for data in dataBatch])
+    drug_adjacent_matrix = torch.stack([data[0][1] for data in dataBatch])
+    drug_padding_mask = torch.stack([data[0][2] for data in dataBatch])
     druginputBatch = (drug_node_embedding, drug_adjacent_matrix, drug_padding_mask)
 
     # target
@@ -21,5 +21,4 @@ def collate_fn(dataBatch):
 
     # label
     labelinputBatch = torch.tensor([data[2] for data in dataBatch])
-
     return druginputBatch, targetinputBatch, labelinputBatch

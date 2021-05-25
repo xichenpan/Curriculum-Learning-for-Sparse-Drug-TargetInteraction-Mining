@@ -21,9 +21,11 @@ class DTNet(nn.Module):
     """
     """
 
-    def __init__(self, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
+    def __init__(self, freeze_protein_embedding, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
                  device, model_name="cross_attn"):
         super(DTNet, self).__init__()
+        self.freeze_protein_embedding = freeze_protein_embedding
+        self.model_name = model_name
         # drug-GNN
         self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
@@ -40,19 +42,19 @@ class DTNet(nn.Module):
         )
 
         # target-pretrained model
-        lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
-        model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
-        model = OrdinalRegression(embedding=model_, n_classes=5)
-        state = torch.load(pretrain_dir)
-        model.load_state_dict(state)
-        self.target_net = load_model(model, device=device)
+        if not freeze_protein_embedding:
+            lm = BiLM(nin=22, embedding_dim=21, hidden_dim=1024, num_layers=2, nout=21)
+            model_ = StackedRNN(nin=21, nembed=512, nunits=512, nout=100, nlayers=3, padding_idx=20, dropout=0, lm=lm)
+            model = OrdinalRegression(embedding=model_, n_classes=5)
+            state = torch.load(pretrain_dir)
+            model.load_state_dict(state)
+            self.target_net = load_model(model, device=device)
+
         self.targetConv = nn.Conv1d(targetinSize, dModel, kernel_size=(1,), stride=(1,), padding=(0,))
         self.targetPost = nn.Sequential(
             nn.LayerNorm(dModel),
             nn.ReLU()
         )
-
-        self.model_name = model_name
 
         # cross attention
         if model_name == "cross_attn":
@@ -81,8 +83,11 @@ class DTNet(nn.Module):
 
         target_padding_mask = targetinputBatch[1]
         targetinputBatch = targetinputBatch[0]
-        with torch.no_grad():
-            targetinputBatch = embedding(targetinputBatch.to(torch.int64), self.target_net, targetinputBatch.device)
+        if not self.freeze_protein_embedding:
+            with torch.no_grad():
+                targetinputBatch = embedding(targetinputBatch.to(torch.int64), self.target_net, targetinputBatch.device)
+        else:
+            targetinputBatch = targetinputBatch.float()
         targetinputBatch = targetinputBatch.transpose(1, 2)
         targetinputBatch = self.targetConv(targetinputBatch)
         targetinputBatch = targetinputBatch.transpose(2, 1)
