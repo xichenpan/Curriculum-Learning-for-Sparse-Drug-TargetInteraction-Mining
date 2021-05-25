@@ -1,8 +1,6 @@
-import pandas as pd
 import pickle
-# from utils.parser import *
-import sys
 import numpy as np
+import pandas as pd
 
 if __name__ == '__main__':
     data = pd.read_csv('./data/train.csv').values.tolist()
@@ -11,12 +9,8 @@ if __name__ == '__main__':
     drug_set = sorted(list(set(drug)))
     target_set = sorted(list(set(target)))
 
-    drug2idx = {
-        drug: idx for idx, drug in enumerate(drug_set)
-    }
-    target2idx = {
-        target: idx for idx, target in enumerate(target_set)
-    }
+    drug2idx = {drug: idx for idx, drug in enumerate(drug_set)}
+    target2idx = {target: idx for idx, target in enumerate(target_set)}
 
     with open('./data/drug.pkl', 'wb') as f:
         pickle.dump(drug_set, f)

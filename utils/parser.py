@@ -18,8 +18,7 @@ def parse_args():
     parser.add_argument('--MOMENTUM1', type=float, default=0.9)
     parser.add_argument('--MOMENTUM2', type=float, default=0.999)
 
-
-    parser.add_argument('--weight',type=str,default=None)
+    parser.add_argument('--weight', type=str, default=None)
     parser.add_argument('--neg_rate', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--num_steps', type=int, default=200)
@@ -32,7 +31,7 @@ def parse_args():
     parser.add_argument('--mlp_depth', type=int, default=2)
     parser.add_argument('--no_edge_weight', default=False, action='store_true')
     parser.add_argument('--no_hcount', default=False, action='store_true')
-    parser.add_argument('--model-name', type=str, default="baseline")
+    parser.add_argument('--model_name', type=str, default="baseline")
     args = parser.parse_args()
     print('============Args==============')
     print(args)

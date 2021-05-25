@@ -5,7 +5,7 @@
       <paths name="xcpan@server.acemap.cn:26001 password (1)">
         <serverdata>
           <mappings>
-            <mapping deploy="/3e" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/3e_xcpan" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

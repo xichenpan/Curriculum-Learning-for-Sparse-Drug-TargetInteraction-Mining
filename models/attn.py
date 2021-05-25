@@ -3,6 +3,7 @@
 import torch.nn as nn
 import torch
 
+
 class Attn_module(nn.Module):
     def __init__(self, embed_dim, kdim, vdim, proj_bias=True):
         super(Attn_module, self).__init__()
@@ -41,7 +42,6 @@ class Attn_module(nn.Module):
 
         attn_weights = attn_weights.masked_fill(key_padding_mask, float("-inf"))
 
-
         attn_weights = attn_weights.transpose(1, 2)  # bs * q_len * k_len
         attn_weights = nn.functional.softmax(attn_weights, dim=-1)  # bs * q_len * k_len
 
@@ -61,7 +61,6 @@ class Drug_Target_Cross_Attnention(nn.Module):
         self.layer_num = layer_num
 
         for i in range(layer_num):
-
             self.drug_to_target_attn_layers.append(
                 Attn_module(
                     embed_dim=drug_feature_dim,
@@ -79,8 +78,6 @@ class Drug_Target_Cross_Attnention(nn.Module):
                     proj_bias=proj_bias
                 )
             )
-
-
 
     def forward(self, drug_input, target_input, drug_mask, target_mask):
         """
@@ -117,27 +114,22 @@ class Drug_Target_Cross_Attnention(nn.Module):
         }
 
 
-
-
-
-
-
 class Drug_Target_Cross_Attnention_Pooling(nn.Module):
     def __init__(self, drug_feature_dim, target_feature_dim, layer_num, proj_bias=True):
         super(Drug_Target_Cross_Attnention_Pooling, self).__init__()
         self.drug_to_target_attn_layer = Attn_module(
-                embed_dim=drug_feature_dim,
-                kdim=target_feature_dim,
-                vdim=target_feature_dim,
-                proj_bias=proj_bias
-            )
+            embed_dim=drug_feature_dim,
+            kdim=target_feature_dim,
+            vdim=target_feature_dim,
+            proj_bias=proj_bias
+        )
 
         self.target_to_drug_attn_layer = Attn_module(
-                embed_dim=target_feature_dim,
-                kdim=drug_feature_dim,
-                vdim=drug_feature_dim,
-                proj_bias=proj_bias
-            )
+            embed_dim=target_feature_dim,
+            kdim=drug_feature_dim,
+            vdim=drug_feature_dim,
+            proj_bias=proj_bias
+        )
 
     def forward(self, drug_input, target_input, drug_mask, target_mask):
         """
@@ -169,6 +161,7 @@ class Drug_Target_Cross_Attnention_Pooling(nn.Module):
         )
 
         return drug_rep, target_rep
+
 
 if __name__ == "__main__":
     device = 1
@@ -203,8 +196,3 @@ if __name__ == "__main__":
     res = model(drug, target, drug_padding_mask, target_padding_mask)
 
     print(res[0].shape, res[1].shape)
-
-
-
-
-

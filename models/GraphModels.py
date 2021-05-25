@@ -70,8 +70,7 @@ class MLPLayer(nn.Module):
 
 
 class GraphNeuralNetwork(nn.Module):
-    def __init__(self, in_dim, out_dim, layer_type='GCN', num_pre=1, num_graph_layer=1, batchnorm=True, head=1,
-                 **kwargs):
+    def __init__(self, in_dim, out_dim, layer_type='GCN', num_pre=1, num_graph_layer=1, batchnorm=True, head=1, **kwargs):
         """
             :param in_dim: input dimensionality
             :param out_dim: output dimensionality, as well as all hidden feature

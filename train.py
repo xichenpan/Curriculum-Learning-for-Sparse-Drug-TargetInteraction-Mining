@@ -31,51 +31,28 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and validation datasets and their corresponding dataloaders
-
-    trainData = DrugTargetInteractionDataset(
-        "train",
-        args.neg_rate,
-        edge_weight=not args.no_edge_weight,
-        use_hcount=not args.no_hcount
-    )
-    trainLoader = DataLoader(
-        trainData,
-        batch_size=args.batch_size,
-        collate_fn=collate_fn,
-        shuffle=True,
-        **kwargs
-    )
-
-    valData = DrugTargetInteractionDataset(
-        "val",
-        args.neg_rate,
-        edge_weight=not args.no_edge_weight,
-        use_hcount=not args.no_hcount
-    )
-    valLoader = DataLoader(
-        valData,
-        batch_size=args.batch_size,
-        collate_fn=collate_fn,
-        shuffle=False,
-        **kwargs
-    )
+    trainData = DrugTargetInteractionDataset("train", args.neg_rate, edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
+    trainLoader = DataLoader(trainData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=True, **kwargs)
+    valData = DrugTargetInteractionDataset("val", args.neg_rate, edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
+    valLoader = DataLoader(valData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
     # declaring the model, optimizer, scheduler and the loss function
-    model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
-                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id)
+    model = DTNet(args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth, args.graph_depth, args.GAT_head,
+                  args.target_in_size, args.pretrain_dir, args.gpu_id)
     model.to(device)
+
+    # Optimizer & scheduler
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR,
-                                                     patience=args.LR_SCHEDULER_WAIT,
-                                                     threshold=args.LR_SCHEDULER_THRESH,
-                                                     threshold_mode="abs", min_lr=args.final_lr, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR, patience=args.LR_SCHEDULER_WAIT,
+                                                     threshold=args.LR_SCHEDULER_THRESH, threshold_mode="abs", min_lr=args.final_lr, verbose=True)
+
+    # Loss function
     loss_function = nn.CrossEntropyLoss()
 
-    # if os.path.exists(args.code_dir + "checkpoints"):
-    #     shutil.rmtree(args.code_dir + "checkpoints")
-    # os.mkdir(args.code_dir + "checkpoints")
-    # os.mkdir(args.code_dir + "checkpoints/models")
-    # os.mkdir(args.code_dir + "checkpoints/plots")
+    # create ckp
+    if os.path.exists(os.path.join('checkpoints', args.save_dir)):
+        shutil.rmtree(os.path.join('checkpoints', args.save_dir))
+    os.makedirs(os.path.join('checkpoints', args.save_dir))
 
     # printing the total and trainable parameters in the model
     numTotalParams, numTrainableParams = num_params(model)
@@ -83,15 +60,11 @@ def main():
     print("Number of trainable parameters in the model = %d\n" % numTrainableParams)
     print("\nTraining the model .... \n")
 
-    if os.path.exists(os.path.join('checkpoints', args.save_dir)):
-        shutil.rmtree(os.path.join('checkpoints', args.save_dir))
-    os.makedirs(os.path.join('checkpoints', args.save_dir))
     writer = SummaryWriter(os.path.join('logs', args.save_dir))
-    for step in range(args.num_steps):
 
+    for step in range(args.num_steps):
         # train the model for one step
-        trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = \
-            train(model, trainLoader, optimizer, loss_function, device, writer, step)
+        trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = train(model, trainLoader, optimizer, loss_function, device, writer, step)
         writer.add_scalar("train_score/acc", trainAcc, step)
         writer.add_scalar("train_score/F1", trainF1, step)
         writer.add_scalar("train_loss/loss", trainLoss, step)
@@ -99,12 +72,11 @@ def main():
         writer.add_scalar("train_score/FP", trainFP, step)
         writer.add_scalar("train_score/FN", trainFN, step)
         writer.add_scalar("train_score/TN", trainTN, step)
-        print("Step: %03d  Train|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d"
-              % (step, trainLoss, trainAcc, trainF1, trainTP, trainTN, trainFP, trainFN))
+        print("Step: %03d  Train|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
+            step, trainLoss, trainAcc, trainF1, trainTP, trainTN, trainFP, trainFN))
 
         # evaluate the model on validation set
-        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = \
-            evaluate(model, valLoader, loss_function, device)
+        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = evaluate(model, valLoader, loss_function, device)
         writer.add_scalar("val_score/acc", valAcc, step)
         writer.add_scalar("val_score/F1", valF1, step)
         writer.add_scalar("val_loss/loss", valLoss, step)
@@ -112,16 +84,15 @@ def main():
         writer.add_scalar("val_score/FP", valFP, step)
         writer.add_scalar("val_score/FN", valFN, step)
         writer.add_scalar("val_score/TN", valTN, step)
-        print("Step: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d"
-              % (step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
+        print("Step: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
+            step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
 
         # make a scheduler step
         scheduler.step(valAcc)
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
         if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):
-            savePath = args.code_dir + "checkpoints/{}/train-step_{:04d}-Acc_{:.3f}.pt".format(args.save_dir, step,
-                                                                                               valAcc)
+            savePath = args.code_dir + "checkpoints/{}/train-step_{:04d}-Acc_{:.3f}.pt".format(args.save_dir, step, valAcc)
             torch.save(model.state_dict(), savePath)
 
     print("\nTraining Done.\n")

@@ -7,10 +7,7 @@ import logging
 import sys
 
 sys.path.append("..")
-from utils.protein_embedding import *
 from src.alphabets import Uniprot21
-from src.models.sequence import *
-from src.models.comparison import *
 from src.models.embedding import *
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
@@ -101,8 +98,13 @@ class TargetDataset(Dataset):
 class DrugTargetInteractionDataset(Dataset):
     def __init__(self, dataset, neg_rate, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
-        self.pos_pairs = pkl.load(open('./data/%s_pos_pairs.pkl' % dataset, 'rb'))
-        self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % dataset, 'rb'))
+        if dataset == 'val_full':
+            pkl_name = 'val'
+        else:
+            pkl_name = dataset
+
+        self.pos_pairs = pkl.load(open('./data/%s_pos_pairs.pkl' % pkl_name, 'rb'))
+        self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % pkl_name, 'rb'))
         self.dataset = dataset
         self.neg_rate = neg_rate
         self.drug_dataset = DrugDataset(**kwargs)
@@ -110,7 +112,6 @@ class DrugTargetInteractionDataset(Dataset):
         print('Load DTI Dataset Complete')
         print('# %s pos pairs = %d' % (self.dataset, len(self.pos_pairs)))
         print('# %s neg pairs = %d' % (self.dataset, len(self.neg_pairs)))
-        return
 
     def __getitem__(self, index):
         # if self.dataset == "train":
@@ -135,7 +136,3 @@ class DrugTargetInteractionDataset(Dataset):
             return len(self.pos_pairs) + len(self.neg_pairs)
         else:
             return (1 + self.neg_rate) * len(self.pos_pairs)
-        # if self.dataset == "train":
-        #     return self.stepSize
-        # else:
-        #     return len(self.pairs)

@@ -1,12 +1,8 @@
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import os
-from src.alphabets import Uniprot21
-from src.models.sequence import *
+
 from src.models.comparison import *
 from src.models.embedding import *
+from src.models.sequence import *
 
 
 def unstack_lstm(lstm):

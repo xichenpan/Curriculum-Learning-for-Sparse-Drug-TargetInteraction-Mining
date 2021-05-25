@@ -1,6 +1,5 @@
 import torch
 from tqdm import tqdm
-import time
 
 
 def num_params(model):
@@ -31,16 +30,10 @@ def train(model, trainLoader, optimizer, loss_function, device, writer, step):
     trainingLoss = 0
     outputAll = []
     labelinputAll = []
-    # time_read_st = time.time()
 
     model.train()
-    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
-            tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
-        # print("TIME READ CMD: ", time.time() - time_read_st)
-
-        druginputBatch = (
-            druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
-            druginputBatch[2].bool().to(device))
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].int().to(device), targetinputBatch[1].bool().to(device))
         labelinputBatch = labelinputBatch.long().to(device)
 
@@ -54,7 +47,6 @@ def train(model, trainLoader, optimizer, loss_function, device, writer, step):
         trainingLoss = trainingLoss + loss.item()
         outputAll.append(outputBatch.detach().cpu())
         labelinputAll.append(labelinputBatch.cpu())
-
         writer.add_scalar('cross_entropy_loss', loss.item(), step * len(trainLoader))
 
     outputAll = torch.cat(outputAll, 0)
@@ -68,11 +60,9 @@ def evaluate(model, evalLoader, loss_function, device):
     evalLoss = 0
     outputAll = []
     labelinputAll = []
-    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(
-            tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
-        druginputBatch = (
-            druginputBatch[0].float().to(device), druginputBatch[1].float().to(device),
-            druginputBatch[2].bool().to(device))
+
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].int().to(device), targetinputBatch[1].bool().to(device))
         labelinputBatch = labelinputBatch.long().to(device)
 

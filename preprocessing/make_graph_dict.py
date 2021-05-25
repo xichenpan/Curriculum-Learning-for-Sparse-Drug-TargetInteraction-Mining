@@ -4,7 +4,6 @@ import logging
 import json
 
 import sys
-
 sys.path.append("..")
 
 logging.getLogger('pysmiles').setLevel(logging.CRITICAL)
