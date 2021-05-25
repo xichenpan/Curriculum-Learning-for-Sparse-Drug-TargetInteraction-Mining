@@ -74,7 +74,7 @@ def main():
         writer.add_scalar("train_score/FP", trainFP, step)
         writer.add_scalar("train_score/FN", trainFN, step)
         writer.add_scalar("train_score/TN", trainTN, step)
-        print("Step: %03d  Train|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
+        print("\nStep: %03d  Train|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
             step, trainLoss, trainAcc, trainF1, trainTP, trainTN, trainFP, trainFN))
 
         # evaluate the model on validation set
@@ -86,7 +86,7 @@ def main():
         writer.add_scalar("val_score/FP", valFP, step)
         writer.add_scalar("val_score/FN", valFN, step)
         writer.add_scalar("val_score/TN", valTN, step)
-        print("Step: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
+        print("\nStep: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
             step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
 
         # make a scheduler step

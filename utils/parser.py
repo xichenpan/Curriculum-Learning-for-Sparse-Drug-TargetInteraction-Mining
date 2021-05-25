@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--weight', type=str, default=None)
     parser.add_argument('--neg_rate', type=int, default=2)
     parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--model_name', type=str, default="baseline")
+    parser.add_argument('--model_name', type=str, default="cross_attn")
     """
         Usually Freeze
     """

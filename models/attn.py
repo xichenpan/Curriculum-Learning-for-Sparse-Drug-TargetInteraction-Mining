@@ -37,8 +37,7 @@ class Attn_module(nn.Module):
 
         attn_weights = torch.bmm(q, k.transpose(1, 2))  # bs * q_len * k_len
         attn_weights = attn_weights.transpose(1, 2)  # bs * k_len * q_len
-        key_padding_mask = key_padding_mask.unsqueeze(-1)
-        key_padding_mask = key_padding_mask.expand(key_padding_mask.shape[0], key_padding_mask.shape[1], attn_weights.shape[-1])
+        key_padding_mask = key_padding_mask[:, :, [0]]
 
         attn_weights = attn_weights.masked_fill(key_padding_mask, float("-inf"))
 
@@ -141,8 +140,8 @@ class Drug_Target_Cross_Attnention_Pooling(nn.Module):
         :return:
         """
 
-        drug_k = drug.mean(dim=-2, keepdim=True)
-        target_k = target.mean(dim=-2, keepdim=True)
+        drug_k = drug_input.mean(dim=-2, keepdim=True)
+        target_k = target_input.mean(dim=-2, keepdim=True)
 
         target_rep, _ = self.drug_to_target_attn_layer(
             q=drug_k,
