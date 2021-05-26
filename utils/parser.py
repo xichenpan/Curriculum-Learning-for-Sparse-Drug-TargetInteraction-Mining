@@ -8,14 +8,15 @@ def parse_args():
     """
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--init_lr', type=float, default=1e-4)
+    parser.add_argument('--drugnet_lr_scale', type=float, default=0.1)
     parser.add_argument('--weight', type=str, default=None)
     parser.add_argument('--neg_rate', type=int, default=5)
-    parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--atten_type', type=str, default="None")
-    parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     """
         Usually Freeze
     """
+    parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
     parser.add_argument('--target_conv', type=str, default="[(512, 5, 2)] + [(512, 2, 2)] * 2")

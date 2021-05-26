@@ -45,7 +45,12 @@ def main():
     model.to(device)
 
     # Optimizer & scheduler
-    optimizer = optim.Adam(model.parameters(), lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
+    drug_net_params = list(map(id, model.drug_net.parameters()))
+    other_params = filter(lambda p: id(p) not in drug_net_params, model.parameters())
+    optimizer = optim.Adam(
+        [{'params': model.drug_net.parameters(), 'lr': args.drugnet_lr_scale * args.init_lr}, {'params': other_params, 'lr': args.init_lr}],
+        lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
+
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR, patience=args.LR_SCHEDULER_WAIT,
                                                      threshold=args.LR_SCHEDULER_THRESH, threshold_mode="abs", min_lr=args.final_lr, verbose=True)
 
