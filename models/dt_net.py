@@ -48,12 +48,17 @@ class DTNet(nn.Module):
     """
 
     def __init__(self, freeze_protein_embedding, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
-                 device, atten_type, drug_conv, target_conv, conv_dropout):
+                 device, atten_type, drug_conv, target_conv, conv_dropout, add_transformer):
         super(DTNet, self).__init__()
         self.freeze_protein_embedding = freeze_protein_embedding
         self.atten_type = atten_type
-        self.positionalEncoding = PositionalEncoding(dModel=dModel, maxLen=1000)
-        encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=4, dim_feedforward=1024, dropout=0.1)
+        self.add_transformer = add_transformer
+        if add_transformer:
+            self.positionalEncoding = PositionalEncoding(dModel=dModel, maxLen=1000)
+            encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=4, dim_feedforward=1024, dropout=0.1)
+            self.drugEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
+            self.targetEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
+
         # drug-GNN
         self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
@@ -67,7 +72,6 @@ class DTNet(nn.Module):
         self.drug_conv_list = drug_conv
         drug_conv = eval(drug_conv)
         self.drugConv = ConvFeatureExtractionModel(dModel, drug_conv, conv_dropout)
-        self.drugEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
 
         # target-pretrained model
         if not freeze_protein_embedding:
@@ -81,7 +85,6 @@ class DTNet(nn.Module):
         self.target_conv_list = target_conv
         target_conv = eval(target_conv)
         self.targetConv = ConvFeatureExtractionModel(targetinSize, target_conv, conv_dropout)
-        self.targetEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
 
         # cross attention
         if atten_type == "cross_attn":
@@ -127,10 +130,11 @@ class DTNet(nn.Module):
         drug_padding_mask[(torch.arange(drugBatch.shape[0]), drug_len - 1)] = 1
         drug_padding_mask = (1 - drug_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
         # tx
-        drugBatch = drugBatch.transpose(1, 0)
-        drugBatch = self.positionalEncoding(drugBatch)
-        drugBatch = self.targetEncoder(drugBatch, src_key_padding_mask=drug_padding_mask)  # TBC
-        drugBatch = drugBatch.transpose(0, 1)
+        if self.add_transformer:
+            drugBatch = drugBatch.transpose(1, 0)
+            drugBatch = self.positionalEncoding(drugBatch)
+            drugBatch = self.targetEncoder(drugBatch, src_key_padding_mask=drug_padding_mask)  # TBC
+            drugBatch = drugBatch.transpose(0, 1)
         # unqueeeze and expand in feature dim
         drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [drugBatch.shape[-1]])
         drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [drugBatch.shape[-1]])
@@ -154,10 +158,11 @@ class DTNet(nn.Module):
         target_padding_mask[(torch.arange(targetBatch.shape[0]), target_len - 1)] = 1
         target_padding_mask = (1 - target_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
         # tx
-        targetBatch = targetBatch.transpose(1, 0)
-        targetBatch = self.positionalEncoding(targetBatch)
-        targetBatch = self.targetEncoder(targetBatch, src_key_padding_mask=target_padding_mask)  # TBC
-        targetBatch = targetBatch.transpose(0, 1)
+        if self.add_transformer:
+            targetBatch = targetBatch.transpose(1, 0)
+            targetBatch = self.positionalEncoding(targetBatch)
+            targetBatch = self.targetEncoder(targetBatch, src_key_padding_mask=target_padding_mask)  # TBC
+            targetBatch = targetBatch.transpose(0, 1)
         # unqueeeze and expand in feature dim
         target_len = target_len.unsqueeze(-1).expand(list(target_len.shape) + [targetBatch.shape[-1]])
         target_padding_mask = target_padding_mask.unsqueeze(-1).expand(list(target_padding_mask.shape) + [targetBatch.shape[-1]])

@@ -13,6 +13,7 @@ def parse_args():
     parser.add_argument('--neg_rate', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--atten_type', type=str, default="None")
+    parser.add_argument('--add_transformer', type=bool, default=False)
     """
         Usually Freeze
     """
