@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.1)
     parser.add_argument('--weight', type=str, default=None)
     parser.add_argument('--neg_rate', type=int, default=5)
-    parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--atten_type', type=str, default="None")
     """
         Usually Freeze

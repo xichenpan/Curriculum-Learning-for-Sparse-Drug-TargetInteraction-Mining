@@ -53,7 +53,7 @@ class DTNet(nn.Module):
         self.freeze_protein_embedding = freeze_protein_embedding
         self.atten_type = atten_type
         self.positionalEncoding = PositionalEncoding(dModel=dModel, maxLen=1000)
-        encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=8, dim_feedforward=2048, dropout=0.1)
+        encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=4, dim_feedforward=1024, dropout=0.1)
         # drug-GNN
         self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
@@ -67,7 +67,7 @@ class DTNet(nn.Module):
         self.drug_conv_list = drug_conv
         drug_conv = eval(drug_conv)
         self.drugConv = ConvFeatureExtractionModel(dModel, drug_conv, conv_dropout)
-        self.drugEncoder = nn.TransformerEncoder(encoderLayer, num_layers=6)
+        self.drugEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
 
         # target-pretrained model
         if not freeze_protein_embedding:
@@ -81,7 +81,7 @@ class DTNet(nn.Module):
         self.target_conv_list = target_conv
         target_conv = eval(target_conv)
         self.targetConv = ConvFeatureExtractionModel(targetinSize, target_conv, conv_dropout)
-        self.targetEncoder = nn.TransformerEncoder(encoderLayer, num_layers=6)
+        self.targetEncoder = nn.TransformerEncoder(encoderLayer, num_layers=4)
 
         # cross attention
         if atten_type == "cross_attn":
