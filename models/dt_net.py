@@ -1,7 +1,32 @@
+import math
+
 from models.GraphModels import GraphNeuralNetwork
 from models.attn import *
 from utils.protein_embedding import *
 from .convlist import ConvFeatureExtractionModel
+
+
+class PositionalEncoding(nn.Module):
+    """
+    A layer to add positional encodings to the inputs of a Transformer model.
+    Formula:
+    PE(pos,2i) = sin(pos/10000^(2i/d_model))
+    PE(pos,2i+1) = cos(pos/10000^(2i/d_model))
+    """
+
+    def __init__(self, dModel, maxLen):
+        super(PositionalEncoding, self).__init__()
+        pe = torch.zeros(maxLen, dModel)
+        position = torch.arange(0, maxLen, dtype=torch.float).unsqueeze(dim=-1)
+        denominator = torch.exp(torch.arange(0, dModel, 2).float() * (math.log(10000.0) / dModel))
+        pe[:, 0::2] = torch.sin(position / denominator)
+        pe[:, 1::2] = torch.cos(position / denominator)
+        pe = pe.unsqueeze(dim=0).transpose(0, 1)
+        self.register_buffer("pe", pe)
+
+    def forward(self, inputBatch):
+        outputBatch = inputBatch + self.pe[:inputBatch.shape[0], :, :]
+        return outputBatch
 
 
 class ModalityNormalization(nn.Module):
@@ -23,10 +48,12 @@ class DTNet(nn.Module):
     """
 
     def __init__(self, freeze_protein_embedding, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
-                 device, model_name, drug_conv, target_conv, conv_dropout):
+                 device, atten_type, drug_conv, target_conv, conv_dropout):
         super(DTNet, self).__init__()
         self.freeze_protein_embedding = freeze_protein_embedding
-        self.model_name = model_name
+        self.atten_type = atten_type
+        self.positionalEncoding = PositionalEncoding(dModel=dModel, maxLen=1000)
+        encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=8, dim_feedforward=2048, dropout=0.1)
         # drug-GNN
         self.drug_net = GraphNeuralNetwork(
             in_dim=druginSize,
@@ -40,6 +67,7 @@ class DTNet(nn.Module):
         self.drug_conv_list = drug_conv
         drug_conv = eval(drug_conv)
         self.drugConv = ConvFeatureExtractionModel(dModel, drug_conv, conv_dropout)
+        self.drugEncoder = nn.TransformerEncoder(encoderLayer, num_layers=6)
 
         # target-pretrained model
         if not freeze_protein_embedding:
@@ -53,9 +81,10 @@ class DTNet(nn.Module):
         self.target_conv_list = target_conv
         target_conv = eval(target_conv)
         self.targetConv = ConvFeatureExtractionModel(targetinSize, target_conv, conv_dropout)
+        self.targetEncoder = nn.TransformerEncoder(encoderLayer, num_layers=6)
 
         # cross attention
-        if model_name == "cross_attn":
+        if atten_type == "cross_attn":
             self.cross_attn_module = Drug_Target_Cross_Attnention_Pooling(drug_feature_dim=512, target_feature_dim=512, layer_num=None,
                                                                           proj_bias=True)
         # fusion
@@ -64,7 +93,7 @@ class DTNet(nn.Module):
 
         self.outputMLP = nn.Sequential(
             nn.Linear(dModel * 2, dModel),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(dModel, 2)
         )
         return
@@ -84,58 +113,68 @@ class DTNet(nn.Module):
 
         return input_lengths.to(torch.long)
 
-    def forward(self, druginputBatch, targetinputBatch):
-        drug_padding_mask = druginputBatch[2]
-        druginputBatch = self.drug_net(druginputBatch[0], druginputBatch[1])
-        druginputBatch = druginputBatch.transpose(1, 2)
-        druginputBatch = self.drugConv(druginputBatch)
-        druginputBatch = druginputBatch.transpose(2, 1)
+    def forward(self, drugBatch, targetBatch):
+        drug_padding_mask = drugBatch[2]
+        drugBatch = self.drug_net(drugBatch[0], drugBatch[1])
+        drugBatch = drugBatch.transpose(1, 2)
+        drugBatch = self.drugConv(drugBatch)
+        drugBatch = drugBatch.transpose(2, 1)
         # calc length
         drug_len = torch.sum(~drug_padding_mask, dim=1)
         drug_len = self._get_feat_extract_output_lengths(self.drug_conv_list, drug_len.long())
         # rebuild target_padding_mask
-        drug_padding_mask = torch.zeros(druginputBatch.shape[:-1], device=druginputBatch.device)
-        drug_padding_mask[(torch.arange(druginputBatch.shape[0]), drug_len - 1)] = 1
+        drug_padding_mask = torch.zeros(drugBatch.shape[:-1], device=drugBatch.device)
+        drug_padding_mask[(torch.arange(drugBatch.shape[0]), drug_len - 1)] = 1
         drug_padding_mask = (1 - drug_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
+        # tx
+        drugBatch = drugBatch.transpose(1, 0)
+        drugBatch = self.positionalEncoding(drugBatch)
+        drugBatch = self.targetEncoder(drugBatch, src_key_padding_mask=drug_padding_mask)  # TBC
+        drugBatch = drugBatch.transpose(0, 1)
         # unqueeeze and expand in feature dim
-        drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [druginputBatch.shape[-1]])
-        drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [druginputBatch.shape[-1]])
-        druginputBatch = druginputBatch * ~drug_padding_mask
+        drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [drugBatch.shape[-1]])
+        drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [drugBatch.shape[-1]])
+        drugBatch = drugBatch * ~drug_padding_mask
 
-        target_padding_mask = targetinputBatch[1]
-        targetinputBatch = targetinputBatch[0]
+        target_padding_mask = targetBatch[1]
+        targetBatch = targetBatch[0]
         if not self.freeze_protein_embedding:
             with torch.no_grad():
-                targetinputBatch = embedding(targetinputBatch.to(torch.int64), self.target_net, targetinputBatch.device)
+                targetBatch = embedding(targetBatch.to(torch.int64), self.target_net, targetBatch.device)
         else:
-            targetinputBatch = targetinputBatch.float()
-        targetinputBatch = targetinputBatch.transpose(1, 2)
-        targetinputBatch = self.targetConv(targetinputBatch)
-        targetinputBatch = targetinputBatch.transpose(2, 1)
+            targetBatch = targetBatch.float()
+        targetBatch = targetBatch.transpose(1, 2)
+        targetBatch = self.targetConv(targetBatch)  # BCT
+        targetBatch = targetBatch.transpose(2, 1)
         # calc length
         target_len = torch.sum(~target_padding_mask, dim=1)
         target_len = self._get_feat_extract_output_lengths(self.target_conv_list, target_len.long())
         # rebuild target_padding_mask
-        target_padding_mask = torch.zeros(targetinputBatch.shape[:-1], device=targetinputBatch.device)
-        target_padding_mask[(torch.arange(targetinputBatch.shape[0]), target_len - 1)] = 1
+        target_padding_mask = torch.zeros(targetBatch.shape[:-1], device=targetBatch.device)
+        target_padding_mask[(torch.arange(targetBatch.shape[0]), target_len - 1)] = 1
         target_padding_mask = (1 - target_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
+        # tx
+        targetBatch = targetBatch.transpose(1, 0)
+        targetBatch = self.positionalEncoding(targetBatch)
+        targetBatch = self.targetEncoder(targetBatch, src_key_padding_mask=target_padding_mask)  # TBC
+        targetBatch = targetBatch.transpose(0, 1)
         # unqueeeze and expand in feature dim
-        target_len = target_len.unsqueeze(-1).expand(list(target_len.shape) + [targetinputBatch.shape[-1]])
-        target_padding_mask = target_padding_mask.unsqueeze(-1).expand(list(target_padding_mask.shape) + [targetinputBatch.shape[-1]])
-        targetinputBatch = targetinputBatch * ~target_padding_mask
+        target_len = target_len.unsqueeze(-1).expand(list(target_len.shape) + [targetBatch.shape[-1]])
+        target_padding_mask = target_padding_mask.unsqueeze(-1).expand(list(target_padding_mask.shape) + [targetBatch.shape[-1]])
+        targetBatch = targetBatch * ~target_padding_mask
 
-        if self.model_name == "baseline":
-            # bz * token *dim
-            druginputBatch = druginputBatch.sum(1) / drug_len
-            targetinputBatch = targetinputBatch.sum(1) / target_len
-            druginputBatch = self.DrugModalityNormalization(druginputBatch)
-            targetinputBatch = self.TargetModalityNormalization(targetinputBatch)
+        if self.atten_type == "cross_attn":
+            drugBatch, targetBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
+            drugBatch = drugBatch.squeeze(1)  # bs * 512
+            targetBatch = targetBatch.squeeze(1)  # bs * 512
         else:
-            druginputBatch, targetinputBatch = self.cross_attn_module(druginputBatch, targetinputBatch, drug_padding_mask, target_padding_mask)
-            druginputBatch = druginputBatch.squeeze(1)  # bs * 512
-            targetinputBatch = targetinputBatch.squeeze(1)  # bs * 512
+            # bz * token *dim
+            drugBatch = drugBatch.sum(1) / drug_len
+            targetBatch = targetBatch.sum(1) / target_len
+            drugBatch = self.DrugModalityNormalization(drugBatch)
+            targetBatch = self.TargetModalityNormalization(targetBatch)
 
-        jointBatch = torch.cat([druginputBatch, targetinputBatch], dim=1)
+        jointBatch = torch.cat([drugBatch, targetBatch], dim=1)
         jointBatch = self.outputMLP(jointBatch)
 
         return jointBatch

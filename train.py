@@ -40,7 +40,7 @@ def main():
 
     # declaring the model, optimizer, scheduler and the loss function
     model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
-                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.model_name, args.drug_conv,
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.atten_type, args.drug_conv,
                   args.target_conv, args.conv_dropout)
     model.to(device)
 

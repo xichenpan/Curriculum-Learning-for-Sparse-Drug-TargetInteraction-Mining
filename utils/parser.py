@@ -9,13 +9,14 @@ def parse_args():
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--init_lr', type=float, default=1e-4)
     parser.add_argument('--weight', type=str, default=None)
-    parser.add_argument('--neg_rate', type=int, default=2)
+    parser.add_argument('--neg_rate', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--model_name', type=str, default="cross_attn")
+    parser.add_argument('--atten_type', type=str, default="None")
+    parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     """
         Usually Freeze
     """
-    # "help": "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
+    # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
     parser.add_argument('--target_conv', type=str, default="[(512, 5, 2)] + [(512, 2, 2)] * 2")
     parser.add_argument('--conv_dropout', type=float, default=0.1)
@@ -36,7 +37,6 @@ def parse_args():
     parser.add_argument('--save_frequency', type=int, default=5)
     parser.add_argument('--d_model', type=int, default=512)
     parser.add_argument('--target_in_size', type=int, default=121)
-    parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     parser.add_argument('--GAT_head', type=int, default=2)
     parser.add_argument('--graph_depth', type=int, default=2)
     parser.add_argument('--mlp_depth', type=int, default=2)
