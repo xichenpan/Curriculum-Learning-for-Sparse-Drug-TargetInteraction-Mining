@@ -90,8 +90,14 @@ class DTNet(nn.Module):
         druginputBatch = druginputBatch.transpose(1, 2)
         druginputBatch = self.drugConv(druginputBatch)
         druginputBatch = druginputBatch.transpose(2, 1)
+        # calc length
         drug_len = torch.sum(~drug_padding_mask, dim=1)
         drug_len = self._get_feat_extract_output_lengths(self.drug_conv_list, drug_len.long())
+        # rebuild target_padding_mask
+        drug_padding_mask = torch.zeros(druginputBatch.shape[:-1], device=druginputBatch.device)
+        drug_padding_mask[(torch.arange(druginputBatch.shape[0]), drug_len - 1)] = 1
+        drug_padding_mask = (1 - drug_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
+        # unqueeeze and expand in feature dim
         drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [druginputBatch.shape[-1]])
         drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [druginputBatch.shape[-1]])
         druginputBatch = druginputBatch * ~drug_padding_mask
@@ -106,8 +112,14 @@ class DTNet(nn.Module):
         targetinputBatch = targetinputBatch.transpose(1, 2)
         targetinputBatch = self.targetConv(targetinputBatch)
         targetinputBatch = targetinputBatch.transpose(2, 1)
+        # calc length
         target_len = torch.sum(~target_padding_mask, dim=1)
         target_len = self._get_feat_extract_output_lengths(self.target_conv_list, target_len.long())
+        # rebuild target_padding_mask
+        target_padding_mask = torch.zeros(targetinputBatch.shape[:-1], device=targetinputBatch.device)
+        target_padding_mask[(torch.arange(targetinputBatch.shape[0]), target_len - 1)] = 1
+        target_padding_mask = (1 - target_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
+        # unqueeeze and expand in feature dim
         target_len = target_len.unsqueeze(-1).expand(list(target_len.shape) + [targetinputBatch.shape[-1]])
         target_padding_mask = target_padding_mask.unsqueeze(-1).expand(list(target_padding_mask.shape) + [targetinputBatch.shape[-1]])
         targetinputBatch = targetinputBatch * ~target_padding_mask

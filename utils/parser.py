@@ -17,7 +17,7 @@ def parse_args():
     """
     # "help": "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
-    parser.add_argument('--target_conv', type=str, default="[(512, 5, 2)] + [(512, 3, 1)] + [(512, 2, 1)]")
+    parser.add_argument('--target_conv', type=str, default="[(512, 5, 2)] + [(512, 2, 2)] * 2")
     parser.add_argument('--conv_dropout', type=float, default=0.1)
     parser.add_argument('--freeze_protein_embedding', type=bool, default=True)
     parser.add_argument('--save_dir', type=str, default='test')
