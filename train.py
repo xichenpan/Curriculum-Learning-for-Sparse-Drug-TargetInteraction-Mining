@@ -40,7 +40,8 @@ def main():
 
     # declaring the model, optimizer, scheduler and the loss function
     model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
-                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.model_name)
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.model_name, args.drug_conv,
+                  args.target_conv, args.conv_dropout)
     model.to(device)
 
     # Optimizer & scheduler
@@ -67,9 +68,9 @@ def main():
     for step in range(args.num_steps):
         # train the model for one step
         trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = train(model, trainLoader, optimizer, loss_function, device, writer, step)
+        writer.add_scalar("train_loss/loss", trainLoss, step)
         writer.add_scalar("train_score/acc", trainAcc, step)
         writer.add_scalar("train_score/F1", trainF1, step)
-        writer.add_scalar("train_loss/loss", trainLoss, step)
         writer.add_scalar("train_score/TP", trainTP, step)
         writer.add_scalar("train_score/FP", trainFP, step)
         writer.add_scalar("train_score/FN", trainFN, step)
@@ -79,9 +80,9 @@ def main():
 
         # evaluate the model on validation set
         valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = evaluate(model, valLoader, loss_function, device)
+        writer.add_scalar("val_loss/loss", valLoss, step)
         writer.add_scalar("val_score/acc", valAcc, step)
         writer.add_scalar("val_score/F1", valF1, step)
-        writer.add_scalar("val_loss/loss", valLoss, step)
         writer.add_scalar("val_score/TP", valTP, step)
         writer.add_scalar("val_score/FP", valFP, step)
         writer.add_scalar("val_score/FN", valFN, step)

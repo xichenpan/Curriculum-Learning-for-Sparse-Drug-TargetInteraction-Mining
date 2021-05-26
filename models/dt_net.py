@@ -1,6 +1,7 @@
 from models.GraphModels import GraphNeuralNetwork
 from models.attn import *
 from utils.protein_embedding import *
+from .convlist import ConvFeatureExtractionModel
 
 
 class ModalityNormalization(nn.Module):
@@ -22,7 +23,7 @@ class DTNet(nn.Module):
     """
 
     def __init__(self, freeze_protein_embedding, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
-                 device, model_name="cross_attn"):
+                 device, model_name, drug_conv, target_conv, conv_dropout):
         super(DTNet, self).__init__()
         self.freeze_protein_embedding = freeze_protein_embedding
         self.model_name = model_name
@@ -35,11 +36,10 @@ class DTNet(nn.Module):
             num_graph_layer=graph_depth,
             head=GAT_head
         )
-        self.drugConv = nn.Conv1d(dModel, dModel, kernel_size=(1,), stride=(1,), padding=(0,))
-        self.drugPost = nn.Sequential(
-            nn.LayerNorm(dModel),
-            nn.ReLU()
-        )
+
+        self.drug_conv_list = drug_conv
+        drug_conv = eval(drug_conv)
+        self.drugConv = ConvFeatureExtractionModel(dModel, drug_conv, conv_dropout)
 
         # target-pretrained model
         if not freeze_protein_embedding:
@@ -50,11 +50,9 @@ class DTNet(nn.Module):
             model.load_state_dict(state)
             self.target_net = load_model(model, device=device)
 
-        self.targetConv = nn.Conv1d(targetinSize, dModel, kernel_size=(1,), stride=(1,), padding=(0,))
-        self.targetPost = nn.Sequential(
-            nn.LayerNorm(dModel),
-            nn.ReLU()
-        )
+        self.target_conv_list = target_conv
+        target_conv = eval(target_conv)
+        self.targetConv = ConvFeatureExtractionModel(targetinSize, target_conv, conv_dropout)
 
         # cross attention
         if model_name == "cross_attn":
@@ -71,15 +69,32 @@ class DTNet(nn.Module):
         )
         return
 
+    def _get_feat_extract_output_lengths(self, convlist, input_lengths: torch.LongTensor):
+        """
+        Computes the output length of the convolutional layers
+        """
+
+        def _conv_out_length(input_length, kernel_size, stride):
+            return torch.floor((input_length - kernel_size) / stride + 1)
+
+        conv_cfg_list = eval(convlist)
+
+        for i in range(len(conv_cfg_list)):
+            input_lengths = _conv_out_length(input_lengths, conv_cfg_list[i][1], conv_cfg_list[i][2])
+
+        return input_lengths.to(torch.long)
+
     def forward(self, druginputBatch, targetinputBatch):
         drug_padding_mask = druginputBatch[2]
         druginputBatch = self.drug_net(druginputBatch[0], druginputBatch[1])
         druginputBatch = druginputBatch.transpose(1, 2)
         druginputBatch = self.drugConv(druginputBatch)
         druginputBatch = druginputBatch.transpose(2, 1)
-        druginputBatch = self.drugPost(druginputBatch)
         drug_len = torch.sum(~drug_padding_mask, dim=1)
+        drug_len = self._get_feat_extract_output_lengths(self.drug_conv_list, drug_len.long())
         drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [druginputBatch.shape[-1]])
+        drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [druginputBatch.shape[-1]])
+        druginputBatch = druginputBatch * ~drug_padding_mask
 
         target_padding_mask = targetinputBatch[1]
         targetinputBatch = targetinputBatch[0]
@@ -91,13 +106,10 @@ class DTNet(nn.Module):
         targetinputBatch = targetinputBatch.transpose(1, 2)
         targetinputBatch = self.targetConv(targetinputBatch)
         targetinputBatch = targetinputBatch.transpose(2, 1)
-        targetinputBatch = self.targetPost(targetinputBatch)
         target_len = torch.sum(~target_padding_mask, dim=1)
+        target_len = self._get_feat_extract_output_lengths(self.target_conv_list, target_len.long())
         target_len = target_len.unsqueeze(-1).expand(list(target_len.shape) + [targetinputBatch.shape[-1]])
-
-        drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [druginputBatch.shape[-1]])
         target_padding_mask = target_padding_mask.unsqueeze(-1).expand(list(target_padding_mask.shape) + [targetinputBatch.shape[-1]])
-        druginputBatch = druginputBatch * ~drug_padding_mask
         targetinputBatch = targetinputBatch * ~target_padding_mask
 
         if self.model_name == "baseline":
