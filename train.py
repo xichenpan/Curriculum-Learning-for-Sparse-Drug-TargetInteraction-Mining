@@ -3,17 +3,16 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 import os
 import shutil
+from tensorboardX import SummaryWriter
 
 from models.dt_net import DTNet
 from data.Dataset import DrugTargetInteractionDataset
 from data.datautils import collate_fn
 from utils.general import num_params, train, evaluate
 from utils.parser import *
-from tensorboardX import SummaryWriter
+from models.labelsmoothing import LabelSmoothing
 
 
 def main():
@@ -31,10 +30,10 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and validation datasets and their corresponding dataloaders
-    trainData = DrugTargetInteractionDataset("train", args.neg_rate, args.target_h5_dir, args.freeze_protein_embedding,
+    trainData = DrugTargetInteractionDataset("train", args.neg_rate, args.sample_rate, args.target_h5_dir, args.freeze_protein_embedding,
                                              edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     trainLoader = DataLoader(trainData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=True, **kwargs)
-    valData = DrugTargetInteractionDataset("val", args.neg_rate, args.target_h5_dir, args.freeze_protein_embedding,
+    valData = DrugTargetInteractionDataset("val", args.neg_rate, args.sample_rate, args.target_h5_dir, args.freeze_protein_embedding,
                                            edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     valLoader = DataLoader(valData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
@@ -55,7 +54,8 @@ def main():
                                                      threshold=args.LR_SCHEDULER_THRESH, threshold_mode="abs", min_lr=args.final_lr, verbose=True)
 
     # Loss function
-    loss_function = nn.CrossEntropyLoss()
+    # loss_function = nn.CrossEntropyLoss()
+    loss_function = LabelSmoothing()
 
     # create ckp
     if os.path.exists(os.path.join('checkpoints', args.save_dir)):

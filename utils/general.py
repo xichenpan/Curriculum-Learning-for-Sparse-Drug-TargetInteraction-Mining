@@ -19,10 +19,22 @@ def compute_score(outputBatch, labelinputBatch):
     FN = ((pred == 0).float() * (labelinputBatch == 1).float()).sum().item()
     TN = ((pred == 0).float() * (labelinputBatch == 0).float()).sum().item()
 
-    acc = (TP + TN) / (TP + FP + FN + TN)
-    precision = TP / (TP + FP)
-    recall = TP / (TP + FN)
-    F1 = precision * recall * 2 / (precision + recall)
+    try:
+        acc = (TP + TN) / (TP + FP + FN + TN)
+    except:
+        acc = -1
+    try:
+        precision = TP / (TP + FP)
+    except:
+        precision = -1
+    try:
+        recall = TP / (TP + FN)
+    except:
+        recall = -1
+    try:
+        F1 = precision * recall * 2 / (precision + recall)
+    except:
+        F1 = -1
     return TP, FP, FN, TN, acc, F1
 
 

@@ -6,17 +6,18 @@ def parse_args():
     """
         Usually Use
     """
-    parser.add_argument('--gpu_id', type=int, default=0)
-    parser.add_argument('--init_lr', type=float, default=1e-4)
-    parser.add_argument('--drugnet_lr_scale', type=float, default=0.1)
-    parser.add_argument('--weight', type=str, default=None)
-    parser.add_argument('--neg_rate', type=int, default=5)
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
+    parser.add_argument('--weight', type=str, default="./checkpoints/mean5/train-step_0050-Acc_0.856.pt")
+    parser.add_argument('--neg_rate', type=int, default=50)
+    parser.add_argument('--sample_rate', type=float, default=1e-1)
     parser.add_argument('--atten_type', type=str, default="None")
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--add_transformer', type=bool, default=False)
     """
         Usually Freeze
     """
+    parser.add_argument('--init_lr', type=float, default=1e-4)
+    parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")

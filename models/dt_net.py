@@ -124,11 +124,6 @@ class DTNet(nn.Module):
         drugBatch = drugBatch.transpose(2, 1)
         # calc length
         drug_len = torch.sum(~drug_padding_mask, dim=1)
-        drug_len = self._get_feat_extract_output_lengths(self.drug_conv_list, drug_len.long())
-        # rebuild target_padding_mask
-        drug_padding_mask = torch.zeros(drugBatch.shape[:-1], device=drugBatch.device)
-        drug_padding_mask[(torch.arange(drugBatch.shape[0]), drug_len - 1)] = 1
-        drug_padding_mask = (1 - drug_padding_mask.flip([-1]).cumsum(-1).flip([-1])).bool()
         # tx
         if self.add_transformer:
             drugBatch = drugBatch.transpose(1, 0)
@@ -174,10 +169,14 @@ class DTNet(nn.Module):
             targetBatch = targetBatch.squeeze(1)  # bs * 512
         else:
             # bz * token *dim
-            drugBatch = drugBatch.sum(1) / drug_len
-            targetBatch = targetBatch.sum(1) / target_len
+            drugBatch = drugBatch.sum(1)
+            targetBatch = targetBatch.sum(1)
             drugBatch = self.DrugModalityNormalization(drugBatch)
             targetBatch = self.TargetModalityNormalization(targetBatch)
+            # drugBatch = drugBatch.sum(1)
+            # targetBatch = targetBatch.sum(1)
+            # drugBatch = self.DrugModalityNormalization(drugBatch)
+            # targetBatch = self.TargetModalityNormalization(targetBatch)
 
         jointBatch = torch.cat([drugBatch, targetBatch], dim=1)
         jointBatch = self.outputMLP(jointBatch)

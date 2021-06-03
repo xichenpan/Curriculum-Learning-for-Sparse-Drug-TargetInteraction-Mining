@@ -6,6 +6,7 @@ import json
 import numpy as np
 import logging
 import h5py
+import math
 import sys
 
 sys.path.append("..")
@@ -104,7 +105,7 @@ class TargetDataset(Dataset):
 
 
 class DrugTargetInteractionDataset(Dataset):
-    def __init__(self, dataset, neg_rate, target_h5_dir, freeze_protein_embedding, **kwargs):
+    def __init__(self, dataset, neg_rate, sample_rate, target_h5_dir, freeze_protein_embedding, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
         if dataset == 'val_full':
             pkl_name = 'val'
@@ -115,6 +116,7 @@ class DrugTargetInteractionDataset(Dataset):
         self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % pkl_name, 'rb'))
         self.dataset = dataset
         self.neg_rate = neg_rate
+        self.sample_rate = sample_rate
         self.drug_dataset = DrugDataset(**kwargs)
         self.target_dataset = TargetDataset(target_h5_dir, freeze_protein_embedding, **kwargs)
         print('Load DTI Dataset Complete')
@@ -126,21 +128,23 @@ class DrugTargetInteractionDataset(Dataset):
         # index goes from 0 to stepSize-1
         # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
         # fetch the sample at position 'index' in this randomly selected partition
-        if index >= len(self.pos_pairs):
+        if index >= self.sample_rate * len(self.pos_pairs):
             if self.dataset in ['val', 'val_full']:
-                index = index - len(self.pos_pairs)
+                index = index - math.floor(self.sample_rate * len(self.pos_pairs))
             else:
                 index = np.random.randint(0, len(self.neg_pairs))
             drug_idx, target_idx, label = self.neg_pairs[index][:]
         else:
+            if self.dataset not in ['val', 'val_full']:
+                index = np.random.randint(0, len(self.pos_pairs))
             drug_idx, target_idx, label = self.pos_pairs[index][:]
 
         return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
 
     def __len__(self):
         if self.dataset == 'val':
-            return 2 * len(self.pos_pairs)
+            return math.floor(self.sample_rate * (1 + self.neg_rate) * len(self.pos_pairs))
         elif self.dataset == 'val_full':
             return len(self.pos_pairs) + len(self.neg_pairs)
         else:
-            return (1 + self.neg_rate) * len(self.pos_pairs)
+            return math.floor(self.sample_rate * (1 + self.neg_rate) * len(self.pos_pairs))
