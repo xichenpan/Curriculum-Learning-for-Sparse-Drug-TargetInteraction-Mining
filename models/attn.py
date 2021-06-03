@@ -162,6 +162,40 @@ class Drug_Target_Cross_Attnention_Pooling(nn.Module):
         return drug_rep, target_rep
 
 
+class Target2Drug_Attnention_Block(nn.Module):
+    def __init__(self, drug_feature_dim, target_feature_dim, proj_bias=True):
+        super(Target2Drug_Attnention_Block, self).__init__()
+
+        self.target_to_drug_attn_layer = Attn_module(
+            embed_dim=target_feature_dim,
+            kdim=drug_feature_dim,
+            vdim=drug_feature_dim,
+            proj_bias=proj_bias
+        )
+
+    def forward(self, drug_input, target_input, drug_mask, target_mask):
+        """
+
+        :param drug_input:
+        :param target_input:
+        :param drug_mask:
+        :param targe_mask:
+        :return:
+        """
+
+        target_k = target_input.mean(dim=-2, keepdim=True)
+
+        drug_rep, _ = self.target_to_drug_attn_layer(
+            q=target_k,
+            k=drug_input,
+            v=drug_input,
+            key_padding_mask=drug_mask,
+            query_padding_mask=target_mask
+        )
+
+        return drug_rep
+
+
 if __name__ == "__main__":
     device = 1
 

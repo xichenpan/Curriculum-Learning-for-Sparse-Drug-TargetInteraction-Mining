@@ -90,6 +90,10 @@ class DTNet(nn.Module):
         if atten_type == "cross_attn":
             self.cross_attn_module = Drug_Target_Cross_Attnention_Pooling(drug_feature_dim=512, target_feature_dim=512, layer_num=None,
                                                                           proj_bias=True)
+
+        if atten_type == "target2drug_attn":
+            self.cross_attn_module = Target2Drug_Attnention_Block(drug_feature_dim=512, target_feature_dim=512, proj_bias=True)
+
         # fusion
         self.DrugModalityNormalization = ModalityNormalization()
         self.TargetModalityNormalization = ModalityNormalization()
@@ -130,6 +134,7 @@ class DTNet(nn.Module):
             drugBatch = self.positionalEncoding(drugBatch)
             drugBatch = self.targetEncoder(drugBatch, src_key_padding_mask=drug_padding_mask)  # TBC
             drugBatch = drugBatch.transpose(0, 1)
+
         # unqueeeze and expand in feature dim
         drug_len = drug_len.unsqueeze(-1).expand(list(drug_len.shape) + [drugBatch.shape[-1]])
         drug_padding_mask = drug_padding_mask.unsqueeze(-1).expand(list(drug_padding_mask.shape) + [drugBatch.shape[-1]])
@@ -167,6 +172,14 @@ class DTNet(nn.Module):
             drugBatch, targetBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
             drugBatch = drugBatch.squeeze(1)  # bs * 512
             targetBatch = targetBatch.squeeze(1)  # bs * 512
+            drugBatch = self.DrugModalityNormalization(drugBatch)
+            targetBatch = self.TargetModalityNormalization(targetBatch)
+        elif self.atten_type == "target2drug_attn":
+            drugBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
+            drugBatch = drugBatch.squeeze(1)  # bs * 512
+            targetBatch = targetBatch.mean(1)
+            drugBatch = self.DrugModalityNormalization(drugBatch)
+            targetBatch = self.TargetModalityNormalization(targetBatch)
         else:
             # bz * token *dim
             drugBatch = drugBatch.sum(1)
