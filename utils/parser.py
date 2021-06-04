@@ -9,10 +9,10 @@ def parse_args():
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
     parser.add_argument('--curriculum_weight', type=str, default=None)
     parser.add_argument('--weight', type=str, default="./checkpoints/mean5/train-step_0050-Acc_0.856.pt")
-    parser.add_argument('--neg_rate', type=int, default=100)
+    parser.add_argument('--neg_rate', type=int, default=50)
     parser.add_argument('--sample_rate', type=float, default=1e-1)
-    parser.add_argument('--atten_type', type=str, default="target2drug_attn")
-    parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--atten_type', type=str, default="wsam")
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--add_transformer', type=bool, default=False)
     """
         Usually Freeze

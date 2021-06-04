@@ -4,6 +4,7 @@ from models.GraphModels import GraphNeuralNetwork
 from models.attn import *
 from utils.protein_embedding import *
 from .convlist import ConvFeatureExtractionModel
+from .Aggregation import WeighedSumAndMax
 
 
 class PositionalEncoding(nn.Module):
@@ -90,10 +91,11 @@ class DTNet(nn.Module):
         if atten_type == "cross_attn":
             self.cross_attn_module = Drug_Target_Cross_Attnention_Pooling(drug_feature_dim=512, target_feature_dim=512, layer_num=None,
                                                                           proj_bias=True)
-
-        if atten_type == "target2drug_attn":
+        elif atten_type == "target2drug_attn":
             self.cross_attn_module = Target2Drug_Attnention_Block(drug_feature_dim=512, target_feature_dim=512, proj_bias=True)
-
+        elif atten_type == 'wsam':
+            self.drugWeightedSumAndMax = WeighedSumAndMax(dModel)
+            self.targetWeightedSumAndMax = WeighedSumAndMax(dModel)
         # fusion
         self.DrugModalityNormalization = ModalityNormalization()
         self.TargetModalityNormalization = ModalityNormalization()
@@ -180,6 +182,9 @@ class DTNet(nn.Module):
             targetBatch = targetBatch.mean(1)
             drugBatch = self.DrugModalityNormalization(drugBatch)
             targetBatch = self.TargetModalityNormalization(targetBatch)
+        elif self.atten_type == 'wsam':
+            drugBatch = self.drugWeightedSumAndMax(drugBatch, drug_padding_mask)
+            targetBatch = self.targetWeightedSumAndMax(targetBatch, target_padding_mask)
         else:
             # bz * token *dim
             drugBatch = drugBatch.sum(1)
