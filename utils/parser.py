@@ -7,18 +7,18 @@ def parse_args():
         Usually Use
     """
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
-    parser.add_argument('--curriculum_weight', type=str, default=None)
-    parser.add_argument('--weight', type=str, default="./checkpoints/mean5/train-step_0050-Acc_0.856.pt")
-    parser.add_argument('--neg_rate', type=int, default=50)
+    parser.add_argument('--curriculum_weight', type=str, default="./checkpoints/neg100/train-step_0030-Acc_0.986.pt")
+    parser.add_argument('--neg_rate', type=int, default=500)
     parser.add_argument('--sample_rate', type=float, default=1e-1)
-    parser.add_argument('--atten_type', type=str, default="wsam")
+    parser.add_argument('--atten_type', type=str, default=None)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--add_transformer', type=bool, default=False)
     """
         Usually Freeze
     """
-    parser.add_argument('--init_lr', type=float, default=1e-4)
-    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--weight', type=str, default=None)
+    parser.add_argument('--init_lr', type=float, default=3e-5)
+    parser.add_argument('--gpu_id', type=int, default=1)
     parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--MOMENTUM1', type=float, default=0.9)
     parser.add_argument('--MOMENTUM2', type=float, default=0.999)
     parser.add_argument('--num_steps', type=int, default=200)
-    parser.add_argument('--save_frequency', type=int, default=5)
+    parser.add_argument('--save_frequency', type=int, default=1)
     parser.add_argument('--d_model', type=int, default=512)
     parser.add_argument('--target_in_size', type=int, default=121)
     parser.add_argument('--GAT_head', type=int, default=2)

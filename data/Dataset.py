@@ -116,7 +116,7 @@ class DrugTargetInteractionDataset(Dataset):
         self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % pkl_name, 'rb'))
         self.dataset = dataset
         self.neg_rate = neg_rate
-        self.sample_rate = sample_rate
+        self.sample_rate = 5 / neg_rate
         self.drug_dataset = DrugDataset(**kwargs)
         self.target_dataset = TargetDataset(target_h5_dir, freeze_protein_embedding, **kwargs)
         print('Load DTI Dataset Complete')
