@@ -30,10 +30,10 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and validation datasets and their corresponding dataloaders
-    trainData = DrugTargetInteractionDataset("train", args.neg_rate, args.sample_rate, args.target_h5_dir, args.freeze_protein_embedding,
+    trainData = DrugTargetInteractionDataset("train", args.neg_rate, args.step_size, args.target_h5_dir, args.freeze_protein_embedding,
                                              edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     trainLoader = DataLoader(trainData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=True, **kwargs)
-    valData = DrugTargetInteractionDataset("val", args.neg_rate, args.sample_rate, args.target_h5_dir, args.freeze_protein_embedding,
+    valData = DrugTargetInteractionDataset("val", args.neg_rate, args.step_size, args.target_h5_dir, args.freeze_protein_embedding,
                                            edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     valLoader = DataLoader(valData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
@@ -75,7 +75,8 @@ def main():
 
     for step in range(args.num_steps):
         # train the model for one step
-        trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = train(model, trainLoader, optimizer, loss_function, device, writer, step)
+        trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = train(model, trainLoader, optimizer, loss_function, device, writer, step,
+                                                                                 args.neg_rate)
         writer.add_scalar("train_loss/loss", trainLoss, step)
         writer.add_scalar("train_score/acc", trainAcc, step)
         writer.add_scalar("train_score/F1", trainF1, step)
@@ -87,7 +88,7 @@ def main():
             step, trainLoss, trainAcc, trainF1, trainTP, trainTN, trainFP, trainFN))
 
         # evaluate the model on validation set
-        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = evaluate(model, valLoader, loss_function, device)
+        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = evaluate(model, valLoader, loss_function, device, args.neg_rate)
         writer.add_scalar("val_loss/loss", valLoss, step)
         writer.add_scalar("val_score/acc", valAcc, step)
         writer.add_scalar("val_score/F1", valF1, step)
@@ -99,7 +100,7 @@ def main():
             step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
 
         # make a scheduler step
-        scheduler.step(valAcc)
+        scheduler.step(valF1)
 
         # saving the model weights and loss/metric curves in the checkpoints directory after every few steps
         if ((step % args.save_frequency == 0) or (step == args.num_steps - 1)) and (step != 0):

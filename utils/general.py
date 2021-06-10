@@ -11,13 +11,17 @@ def num_params(model):
     return numTotalParams, numTrainableParams
 
 
-def compute_score(outputBatch, labelinputBatch):
+def compute_score(outputBatch, labelinputBatch, neg_rate):
     pred = outputBatch.argmax(dim=1).long()
+    if neg_rate == -1:
+        scale_times = 1
+    else:
+        scale_times = 0.3 * neg_rate
 
     TP = ((pred == 1).float() * (labelinputBatch == 1).float()).sum().item()
-    FP = ((pred == 1).float() * (labelinputBatch == 0).float()).sum().item()
+    FP = ((pred == 1).float() * (labelinputBatch == 0).float()).sum().item() * scale_times
     FN = ((pred == 0).float() * (labelinputBatch == 1).float()).sum().item()
-    TN = ((pred == 0).float() * (labelinputBatch == 0).float()).sum().item()
+    TN = ((pred == 0).float() * (labelinputBatch == 0).float()).sum().item() * scale_times
 
     try:
         acc = (TP + TN) / (TP + FP + FN + TN)
@@ -38,7 +42,7 @@ def compute_score(outputBatch, labelinputBatch):
     return TP, FP, FN, TN, acc, F1
 
 
-def train(model, trainLoader, optimizer, loss_function, device, writer, step):
+def train(model, trainLoader, optimizer, loss_function, device, writer, step, neg_rate):
     trainingLoss = 0
     outputAll = []
     labelinputAll = []
@@ -64,11 +68,11 @@ def train(model, trainLoader, optimizer, loss_function, device, writer, step):
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
     trainingLoss = trainingLoss / len(trainLoader)
-    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll)
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
     return trainingLoss, TP, FP, FN, TN, acc, F1
 
 
-def evaluate(model, evalLoader, loss_function, device):
+def evaluate(model, evalLoader, loss_function, device, neg_rate):
     evalLoss = 0
     outputAll = []
     labelinputAll = []
@@ -91,5 +95,5 @@ def evaluate(model, evalLoader, loss_function, device):
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
     evalLoss = evalLoss / len(evalLoader.dataset)
-    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll)
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, neg_rate)
     return evalLoss, TP, FP, FN, TN, acc, F1

@@ -105,8 +105,9 @@ class TargetDataset(Dataset):
 
 
 class DrugTargetInteractionDataset(Dataset):
-    def __init__(self, dataset, neg_rate, sample_rate, target_h5_dir, freeze_protein_embedding, **kwargs):
+    def __init__(self, dataset, neg_rate, stepSize, target_h5_dir, freeze_protein_embedding, **kwargs):
         super(DrugTargetInteractionDataset, self).__init__()
+        self.dataset = dataset
         if dataset == 'val_full':
             pkl_name = 'val'
         else:
@@ -114,9 +115,13 @@ class DrugTargetInteractionDataset(Dataset):
 
         self.pos_pairs = pkl.load(open('./data/%s_pos_pairs.pkl' % pkl_name, 'rb'))
         self.neg_pairs = pkl.load(open('./data/%s_neg_pairs.pkl' % pkl_name, 'rb'))
-        self.dataset = dataset
+        if dataset == "val":
+            self.neg_pairs = self.neg_pairs[:5000]
+
         self.neg_rate = neg_rate
-        self.sample_rate = 5 / neg_rate
+        self.stepSize = stepSize
+        self.neg_stepSize = math.floor(stepSize * neg_rate / (neg_rate + 1))
+        self.pos_stepSize = math.floor(stepSize / (neg_rate + 1))
         self.drug_dataset = DrugDataset(**kwargs)
         self.target_dataset = TargetDataset(target_h5_dir, freeze_protein_embedding, **kwargs)
         print('Load DTI Dataset Complete')
@@ -124,27 +129,32 @@ class DrugTargetInteractionDataset(Dataset):
         print('# %s neg pairs = %d' % (self.dataset, len(self.neg_pairs)))
 
     def __getitem__(self, index):
-        # if self.dataset == "train":
-        # index goes from 0 to stepSize-1
-        # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
-        # fetch the sample at position 'index' in this randomly selected partition
-        if index >= self.sample_rate * len(self.pos_pairs):
-            if self.dataset in ['val', 'val_full']:
-                index = index - math.floor(self.sample_rate * len(self.pos_pairs))
+        if self.dataset == "train":
+            # index goes from 0 to stepSize-1
+            # dividing the dataset into partitions of size equal to stepSize and selecting a random partition
+            # fetch the sample at position 'index' in this randomly selected partition
+            if index > self.pos_stepSize:
+                base = self.neg_stepSize * np.arange(int(len(self.neg_pairs) / self.neg_stepSize) + 1)
+                ixs = base + index
+                ixs = ixs[ixs < len(self.neg_pairs)]
+                index = ixs[0] if len(ixs) == 1 else np.random.choice(ixs)
+                drug_idx, target_idx, label = self.neg_pairs[index][:]
             else:
-                index = np.random.randint(0, len(self.neg_pairs))
-            drug_idx, target_idx, label = self.neg_pairs[index][:]
+                base = self.pos_stepSize * np.arange(int(len(self.pos_pairs) / self.pos_stepSize) + 1)
+                ixs = base + index
+                ixs = ixs[ixs < len(self.pos_pairs)]
+                index = ixs[0] if len(ixs) == 1 else np.random.choice(ixs)
+                drug_idx, target_idx, label = self.pos_pairs[index][:]
         else:
-            if self.dataset not in ['val', 'val_full']:
-                index = np.random.randint(0, len(self.pos_pairs))
-            drug_idx, target_idx, label = self.pos_pairs[index][:]
+            if index < len(self.pos_pairs):
+                drug_idx, target_idx, label = self.pos_pairs[index]
+            else:
+                drug_idx, target_idx, label = self.neg_pairs[index - len(self.pos_pairs)]
 
         return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
 
     def __len__(self):
-        if self.dataset == 'val':
-            return math.floor(self.sample_rate * (1 + self.neg_rate) * len(self.pos_pairs))
-        elif self.dataset == 'val_full':
-            return len(self.pos_pairs) + len(self.neg_pairs)
+        if self.dataset == 'train':
+            return self.stepSize
         else:
-            return math.floor(self.sample_rate * (1 + self.neg_rate) * len(self.pos_pairs))
+            return len(self.pos_pairs) + len(self.neg_pairs)

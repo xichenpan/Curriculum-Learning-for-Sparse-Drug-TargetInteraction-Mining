@@ -96,13 +96,18 @@ class DTNet(nn.Module):
         elif atten_type == 'wsam':
             self.drugWeightedSumAndMax = WeighedSumAndMax(dModel)
             self.targetWeightedSumAndMax = WeighedSumAndMax(dModel)
+        
         # fusion
-        self.DrugModalityNormalization = ModalityNormalization()
-        self.TargetModalityNormalization = ModalityNormalization()
+        # self.DrugModalityNormalization = ModalityNormalization()
+        # self.TargetModalityNormalization = ModalityNormalization()
 
         self.outputMLP = nn.Sequential(
             nn.Linear(dModel * 2, dModel),
-            nn.GELU(),
+            nn.BatchNorm1d(dModel),
+            nn.ReLU(),
+            nn.Linear(dModel, dModel),
+            nn.BatchNorm1d(dModel),
+            nn.ReLU(),
             nn.Linear(dModel, 2)
         )
         return
@@ -174,14 +179,10 @@ class DTNet(nn.Module):
             drugBatch, targetBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
             drugBatch = drugBatch.squeeze(1)  # bs * 512
             targetBatch = targetBatch.squeeze(1)  # bs * 512
-            drugBatch = self.DrugModalityNormalization(drugBatch)
-            targetBatch = self.TargetModalityNormalization(targetBatch)
         elif self.atten_type == "target2drug_attn":
             drugBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
             drugBatch = drugBatch.squeeze(1)  # bs * 512
             targetBatch = targetBatch.mean(1)
-            drugBatch = self.DrugModalityNormalization(drugBatch)
-            targetBatch = self.TargetModalityNormalization(targetBatch)
         elif self.atten_type == 'wsam':
             drugBatch = self.drugWeightedSumAndMax(drugBatch, drug_padding_mask)
             targetBatch = self.targetWeightedSumAndMax(targetBatch, target_padding_mask)
@@ -189,8 +190,6 @@ class DTNet(nn.Module):
             # bz * token *dim
             drugBatch = drugBatch.sum(1)
             targetBatch = targetBatch.sum(1)
-            drugBatch = self.DrugModalityNormalization(drugBatch)
-            targetBatch = self.TargetModalityNormalization(targetBatch)
             # drugBatch = drugBatch.sum(1)
             # targetBatch = targetBatch.sum(1)
             # drugBatch = self.DrugModalityNormalization(drugBatch)
