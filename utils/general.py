@@ -94,6 +94,6 @@ def evaluate(model, evalLoader, loss_function, device, neg_rate):
 
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
-    evalLoss = evalLoss / len(evalLoader.dataset)
+    evalLoss = evalLoss / len(evalLoader)
     TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, neg_rate)
     return evalLoss, TP, FP, FN, TN, acc, F1

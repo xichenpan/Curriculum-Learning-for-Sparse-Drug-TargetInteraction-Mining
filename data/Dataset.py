@@ -140,6 +140,7 @@ class DrugTargetInteractionDataset(Dataset):
                 index = ixs[0] if len(ixs) == 1 else np.random.choice(ixs)
                 drug_idx, target_idx, label = self.neg_pairs[index][:]
             else:
+                index = index % len(self.pos_pairs)
                 base = self.pos_stepSize * np.arange(int(len(self.pos_pairs) / self.pos_stepSize) + 1)
                 ixs = base + index
                 ixs = ixs[ixs < len(self.pos_pairs)]
