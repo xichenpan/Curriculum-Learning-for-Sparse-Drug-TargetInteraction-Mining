@@ -11,11 +11,8 @@ def num_params(model):
     return numTotalParams, numTrainableParams
 
 
-def compute_score(outputBatch, labelinputBatch, neg_rate):
-    try:
-        pred = outputBatch.argmax(dim=1).long()
-    except:
-        pred = outputBatch.long()
+def compute_score(pred, labelinputBatch, neg_rate):
+    # pred = outputBatch.long()
     if neg_rate == -1:
         scale_times = 1
     else:
@@ -71,7 +68,7 @@ def train(model, trainLoader, optimizer, loss_function, device, writer, step, ne
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
     trainingLoss = trainingLoss / len(trainLoader)
-    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll.argmax(dim=1).long(), labelinputAll, -1)
     return trainingLoss, TP, FP, FN, TN, acc, F1
 
 
@@ -98,7 +95,7 @@ def evaluate(model, evalLoader, loss_function, device, neg_rate):
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
     evalLoss = evalLoss / len(evalLoader)
-    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, neg_rate)
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll.argmax(dim=1).long(), labelinputAll, neg_rate)
     return evalLoss, TP, FP, FN, TN, acc, F1
 
 
@@ -112,3 +109,22 @@ def extract_logits(model, evalLoader, logits, device):
             outputBatch = model(druginputBatch, targetinputBatch)
 
         logits[batch] = outputBatch.cpu().numpy().flatten()
+
+
+def find_threshold(evalLoader, f, threshold, device):
+    outputAll = []
+    labelinputAll = []
+
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Find", ncols=75)):
+        labelinputBatch = labelinputBatch.long().to(device)
+
+        outputAll.append(f[batch].detach().cpu())
+        labelinputAll.append(labelinputBatch.cpu())
+
+    outputAll = torch.cat(outputAll, 0)
+    labelinputAll = torch.cat(labelinputAll, 0)
+    outputAll = outputAll > threshold
+
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
+    return TP, FP, FN, TN, acc, F1
+

@@ -110,6 +110,8 @@ class DrugTargetInteractionDataset(Dataset):
         self.dataset = dataset
         if dataset == 'val_full':
             pkl_name = 'val'
+        elif dataset == 'find_full':
+            pkl_name = 'val'
         else:
             pkl_name = dataset
 
@@ -151,8 +153,10 @@ class DrugTargetInteractionDataset(Dataset):
                 drug_idx, target_idx, label = self.pos_pairs[index]
             else:
                 drug_idx, target_idx, label = self.neg_pairs[index - len(self.pos_pairs)]
-
-        return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
+        if self.dataset == "find_full":
+            return None, None, label
+        else:
+            return self.drug_dataset[drug_idx], self.target_dataset[target_idx], label
 
     def __len__(self):
         if self.dataset == 'train':

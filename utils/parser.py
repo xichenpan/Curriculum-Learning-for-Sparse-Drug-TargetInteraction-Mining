@@ -8,17 +8,17 @@ def parse_args():
     """
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
     parser.add_argument('--curriculum_weight', type=str, default=None)
-    parser.add_argument('--weight', type=str, default=None)
+    parser.add_argument('--weight', type=str, default="../3e_xcpan/checkpoints/neg3_3e-4_20/train-step_0060-Acc_0.914.pt")
     parser.add_argument('--neg_rate', type=int, default=3)
     parser.add_argument('--step_size', type=int, default=65536)
-    parser.add_argument('--atten_type', type=str, default="wsam")
+    parser.add_argument('--atten_type', type=str, default=None)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--add_transformer', type=bool, default=False)
     parser.add_argument('--focal_loss', type=bool, default=False)
     """
         Usually Freeze
     """
-    parser.add_argument('--ex_batch_size', type=int, default=1024)
+    parser.add_argument('--ex_batch_size', type=int, default=256)
     parser.add_argument('--init_lr', type=float, default=3e-4)
     parser.add_argument('--gpu_id', type=int, default=1)
     parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
