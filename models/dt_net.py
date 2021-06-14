@@ -49,11 +49,16 @@ class DTNet(nn.Module):
     """
 
     def __init__(self, freeze_protein_embedding, dModel, graph_layer, druginSize, mlp_depth, graph_depth, GAT_head, targetinSize, pretrain_dir,
-                 device, atten_type, drug_conv, target_conv, conv_dropout, add_transformer):
+                 device, atten_type, drug_conv, target_conv, conv_dropout, add_transformer, focal_loss):
         super(DTNet, self).__init__()
         self.freeze_protein_embedding = freeze_protein_embedding
         self.atten_type = atten_type
         self.add_transformer = add_transformer
+        self.focal_loss = focal_loss
+        if focal_loss:
+            final_dim = 1
+        else:
+            final_dim = 2
         if add_transformer:
             self.positionalEncoding = PositionalEncoding(dModel=dModel, maxLen=1000)
             encoderLayer = nn.TransformerEncoderLayer(d_model=dModel, nhead=4, dim_feedforward=1024, dropout=0.1)
@@ -108,7 +113,7 @@ class DTNet(nn.Module):
             nn.Linear(dModel, dModel),
             nn.BatchNorm1d(dModel),
             nn.ReLU(),
-            nn.Linear(dModel, 2)
+            nn.Linear(dModel, final_dim)
         )
         return
 
@@ -197,5 +202,9 @@ class DTNet(nn.Module):
 
         jointBatch = torch.cat([drugBatch, targetBatch], dim=1)
         jointBatch = self.outputMLP(jointBatch)
+        if self.focal_loss:
+            jointBatch = jointBatch.squeeze(-1)
+        else:
+            pass
 
         return jointBatch

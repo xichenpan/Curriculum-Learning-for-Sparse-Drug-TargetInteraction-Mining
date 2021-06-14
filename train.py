@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import torchvision
 from torch.utils.data import DataLoader
 import numpy as np
 import os
@@ -40,7 +41,7 @@ def main():
     # declaring the model, optimizer, scheduler and the loss function
     model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, trainData.drug_dataset.embedding_dim, args.mlp_depth,
                   args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.atten_type, args.drug_conv,
-                  args.target_conv, args.conv_dropout, args.add_transformer)
+                  args.target_conv, args.conv_dropout, args.add_transformer, args.focal_loss)
     if args.curriculum_weight is not None:
         model.load_state_dict(torch.load(args.curriculum_weight, map_location="cpu"))
         print("\nLoad model %s \n" % args.curriculum_weight)
@@ -58,7 +59,10 @@ def main():
 
     # Loss function
     # loss_function = nn.CrossEntropyLoss()
-    loss_function = LabelSmoothing()
+    if args.focal_loss:
+        loss_function = torchvision.ops.sigmoid_focal_loss
+    else:
+        loss_function = LabelSmoothing
 
     # create ckp
     if os.path.exists(os.path.join('checkpoints', args.save_dir)):
@@ -98,6 +102,7 @@ def main():
         writer.add_scalar("val_score/TN", valTN, step)
         print("\nStep: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
             step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
+        writer.add_scalar("hparam/lr", optimizer.param_groups[1]['lr'], step)
 
         # make a scheduler step
         scheduler.step(valF1)

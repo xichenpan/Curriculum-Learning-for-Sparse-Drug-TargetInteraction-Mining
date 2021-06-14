@@ -12,7 +12,10 @@ def num_params(model):
 
 
 def compute_score(outputBatch, labelinputBatch, neg_rate):
-    pred = outputBatch.argmax(dim=1).long()
+    try:
+        pred = outputBatch.argmax(dim=1).long()
+    except:
+        pred = outputBatch.long()
     if neg_rate == -1:
         scale_times = 1
     else:
@@ -51,12 +54,12 @@ def train(model, trainLoader, optimizer, loss_function, device, writer, step, ne
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
-        labelinputBatch = labelinputBatch.long().to(device)
+        labelinputBatch = labelinputBatch.float().to(device)
 
         optimizer.zero_grad()
         outputBatch = model(druginputBatch, targetinputBatch)
         with torch.backends.cudnn.flags(enabled=False):
-            loss = loss_function(outputBatch, labelinputBatch)
+            loss = loss_function(outputBatch, labelinputBatch, reduction="mean")
         loss.backward()
         optimizer.step()
 
@@ -80,13 +83,13 @@ def evaluate(model, evalLoader, loss_function, device, neg_rate):
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
-        labelinputBatch = labelinputBatch.long().to(device)
+        labelinputBatch = labelinputBatch.float().to(device)
 
         model.eval()
         with torch.no_grad():
             outputBatch = model(druginputBatch, targetinputBatch)
             with torch.backends.cudnn.flags(enabled=False):
-                loss = loss_function(outputBatch, labelinputBatch)
+                loss = loss_function(outputBatch, labelinputBatch, reduction="mean")
 
         evalLoss = evalLoss + loss.item()
         outputAll.append(outputBatch.detach().cpu())
