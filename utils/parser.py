@@ -8,6 +8,7 @@ def parse_args():
     """
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
     parser.add_argument('--curriculum_weight', type=str, default=None)
+    parser.add_argument('--weight', type=str, default=None)
     parser.add_argument('--neg_rate', type=int, default=3)
     parser.add_argument('--step_size', type=int, default=65536)
     parser.add_argument('--atten_type', type=str, default="wsam")
@@ -17,9 +18,9 @@ def parse_args():
     """
         Usually Freeze
     """
-    parser.add_argument('--weight', type=str, default=None)
+    parser.add_argument('--ex_batch_size', type=int, default=1024)
     parser.add_argument('--init_lr', type=float, default=3e-4)
-    parser.add_argument('--gpu_id', type=int, default=2)
+    parser.add_argument('--gpu_id', type=int, default=1)
     parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
@@ -30,6 +31,7 @@ def parse_args():
     parser.add_argument('--code_dir', type=str, default='')
     parser.add_argument('--pretrain_dir', type=str, default='../3e_pretrain/model_weight.bin')
     parser.add_argument('--target_h5_dir', type=str, default='../3e_pretrain/targetfeature.h5')
+    parser.add_argument('--logits_h5_dir', type=str, default='../3e_pretrain/logits.h5')
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--seed', type=int, default=19260817)
     parser.add_argument('--final_lr', type=float, default=1e-7)

@@ -100,3 +100,15 @@ def evaluate(model, evalLoader, loss_function, device, neg_rate):
     evalLoss = evalLoss / len(evalLoader)
     TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, neg_rate)
     return evalLoss, TP, FP, FN, TN, acc, F1
+
+
+def extract_logits(model, evalLoader, logits, device):
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Extract", ncols=75)):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
+        targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
+
+        model.eval()
+        with torch.no_grad():
+            outputBatch = model(druginputBatch, targetinputBatch)
+
+        logits[batch] = outputBatch.cpu().numpy().flatten()
