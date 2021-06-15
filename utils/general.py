@@ -1,5 +1,7 @@
 import torch
+import numpy as np
 from tqdm import tqdm
+import torch.nn.functional as F
 
 
 def num_params(model):
@@ -115,15 +117,16 @@ def find_threshold(evalLoader, f, threshold, device):
     outputAll = []
     labelinputAll = []
 
-    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Find", ncols=75)):
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(evalLoader):
         labelinputBatch = labelinputBatch.long().to(device)
 
-        outputAll.append(f[batch].detach().cpu())
+        outputAll.append(torch.from_numpy(np.array(f["logits"][batch]).reshape(-1, 2)))
         labelinputAll.append(labelinputBatch.cpu())
 
     outputAll = torch.cat(outputAll, 0)
     labelinputAll = torch.cat(labelinputAll, 0)
-    outputAll = outputAll > threshold
+    outputAll = F.softmax(outputAll, dim=1)[:, 1]
+    outputAll = (outputAll > threshold).long()
 
     TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
     return TP, FP, FN, TN, acc, F1

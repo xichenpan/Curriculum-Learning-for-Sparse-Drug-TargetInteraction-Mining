@@ -2,9 +2,9 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import h5py
+from tqdm import tqdm
 import logging
 
-from models.dt_net import DTNet
 from data.Dataset import DrugTargetInteractionDataset
 from data.datautils import collate_fn
 from utils.general import find_threshold
@@ -31,19 +31,19 @@ def main():
                                            edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     valLoader = DataLoader(valData, batch_size=args.ex_batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
-    threshold_list = [0.9]
+    threshold_list = np.arange(0.93, 0.97, 0.002)
 
-    f = h5py.File(args.logits_h5_dir, "w")
+    f = h5py.File(args.logits_h5_dir, "r")
     bestF1 = -1
     bestthreshold = -1
-    for threshold in threshold_list:
+    for threshold in tqdm(threshold_list, leave=False, desc="Find", ncols=75):
         TP, FP, FN, TN, acc, F1 = find_threshold(valLoader, f, threshold, device)
-        logger.info("%s Result: TP: %d || FP: %d || FN: %d || TN: %d || acc: %.3f || F1: %.3f" % (threshold, TP, FP, FN, TN, acc, F1))
+        logger.info("%.3f Result: TP: %d || FP: %d || FN: %d || TN: %d || acc: %.3f || F1: %.3f" % (threshold, TP, FP, FN, TN, acc, F1))
         if F1 > bestF1:
             bestF1 = F1
             bestthreshold = threshold
 
-    logger.info("Find Done.\nBest Result: threshold: %s || F1: %.3f" % (bestthreshold, bestF1))
+    logger.info("Find Done.\nBest Result: threshold: %d || F1: %.3f" % (bestthreshold, bestF1))
     f.close()
 
     return
