@@ -44,21 +44,25 @@ def compute_score(pred, labelinputBatch, neg_rate):
     return TP, FP, FN, TN, acc, F1
 
 
-def train(model, trainLoader, optimizer, loss_function, device, writer, step, neg_rate):
+def train(model, trainLoader, optimizer, loss_function, device, writer, step, neg_rate, train_cls_only):
     trainingLoss = 0
     outputAll = []
     labelinputAll = []
 
-    model.train()
+    if train_cls_only:
+        model.outputMLP.train()
+    else:
+        model.train()
+
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(trainLoader, leave=False, desc="Train", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
-        labelinputBatch = labelinputBatch.float().to(device)
+        labelinputBatch = labelinputBatch.long().to(device)
 
         optimizer.zero_grad()
         outputBatch = model(druginputBatch, targetinputBatch)
         with torch.backends.cudnn.flags(enabled=False):
-            loss = loss_function(outputBatch, labelinputBatch, reduction="mean")
+            loss = loss_function(outputBatch, labelinputBatch)
         loss.backward()
         optimizer.step()
 
@@ -82,13 +86,13 @@ def evaluate(model, evalLoader, loss_function, device, neg_rate):
     for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(evalLoader, leave=False, desc="Eval", ncols=75)):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
-        labelinputBatch = labelinputBatch.float().to(device)
+        labelinputBatch = labelinputBatch.long().to(device)
 
         model.eval()
         with torch.no_grad():
             outputBatch = model(druginputBatch, targetinputBatch)
             with torch.backends.cudnn.flags(enabled=False):
-                loss = loss_function(outputBatch, labelinputBatch, reduction="mean")
+                loss = loss_function(outputBatch, labelinputBatch)
 
         evalLoss = evalLoss + loss.item()
         outputAll.append(outputBatch.detach().cpu())
@@ -131,3 +135,27 @@ def find_threshold(evalLoader, f, threshold, device):
     TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
     return TP, FP, FN, TN, acc, F1
 
+
+def test(model, evalLoader, threshold, device):
+    outputAll = []
+    labelinputAll = []
+
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(evalLoader):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
+        targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
+        labelinputBatch = labelinputBatch.long().to(device)
+
+        model.eval()
+        with torch.no_grad():
+            outputBatch = model(druginputBatch, targetinputBatch)
+
+        outputAll.append(outputBatch.detach().cpu())
+        labelinputAll.append(labelinputBatch.cpu())
+
+    outputAll = torch.cat(outputAll, 0)
+    labelinputAll = torch.cat(labelinputAll, 0)
+    outputAll = F.softmax(outputAll, dim=1)[:, 1]
+    outputAll = (outputAll > threshold).long()
+
+    TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
+    return TP, FP, FN, TN, acc, F1

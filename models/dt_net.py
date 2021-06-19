@@ -187,7 +187,7 @@ class DTNet(nn.Module):
         elif self.atten_type == "target2drug_attn":
             drugBatch = self.cross_attn_module(drugBatch, targetBatch, drug_padding_mask, target_padding_mask)
             drugBatch = drugBatch.squeeze(1)  # bs * 512
-            targetBatch = targetBatch.mean(1)
+            targetBatch = targetBatch.sum(1) / target_len
         elif self.atten_type == 'wsam':
             drugBatch = self.drugWeightedSumAndMax(drugBatch, drug_padding_mask)
             targetBatch = self.targetWeightedSumAndMax(targetBatch, target_padding_mask)

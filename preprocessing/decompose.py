@@ -1,11 +1,9 @@
 import pandas as pd
 import pickle
-# from utils.parser import *
-import sys
 import numpy as np
-import random
 
-if __name__ == '__main__':
+
+def Decompose():
     data = pd.read_csv('../data/train.csv').values.tolist()
     drug, target, label = list(zip(*data))
 
@@ -73,3 +71,7 @@ if __name__ == '__main__':
     with open('../data/val_neg_pairs.pkl', 'wb') as f:
         pickle.dump(val_neg_pairs, f)
         print('# TestNegative = %d' % len(val_neg_pairs))
+
+
+if __name__ == '__main__':
+    Decompose()

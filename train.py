@@ -1,12 +1,12 @@
 import torch
 import torch.optim as optim
-import torch.nn as nn
 import torchvision
 from torch.utils.data import DataLoader
 import numpy as np
 import os
 import shutil
 from tensorboardX import SummaryWriter
+from warmup_scheduler import GradualWarmupScheduler
 
 from models.dt_net import DTNet
 from data.Dataset import DrugTargetInteractionDataset
@@ -46,6 +46,11 @@ def main():
         model.load_state_dict(torch.load(args.curriculum_weight, map_location="cpu"))
         print("\nLoad model %s \n" % args.curriculum_weight)
     model.to(device)
+    if args.train_cls_only:
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.outputMLP.parameters():
+            param.requires_grad = True
 
     # Optimizer & scheduler
     drug_net_params = list(map(id, model.drug_net.parameters()))
@@ -54,15 +59,17 @@ def main():
         [{'params': model.drug_net.parameters(), 'lr': args.drugnet_lr_scale * args.init_lr}, {'params': other_params, 'lr': args.init_lr}],
         lr=args.init_lr, betas=(args.MOMENTUM1, args.MOMENTUM2))
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR, patience=args.LR_SCHEDULER_WAIT,
-                                                     threshold=args.LR_SCHEDULER_THRESH, threshold_mode="abs", min_lr=args.final_lr, verbose=True)
+    scheduler_reduce = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=args.LR_SCHEDULER_FACTOR, patience=args.LR_SCHEDULER_WAIT,
+                                                            threshold=args.LR_SCHEDULER_THRESH, threshold_mode="abs", min_lr=args.final_lr,
+                                                            verbose=True)
+    scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=20, after_scheduler=scheduler_reduce)
 
     # Loss function
     # loss_function = nn.CrossEntropyLoss()
     if args.focal_loss:
         loss_function = torchvision.ops.sigmoid_focal_loss
     else:
-        loss_function = LabelSmoothing
+        loss_function = LabelSmoothing()
 
     # create ckp
     if os.path.exists(os.path.join('checkpoints', args.save_dir)):
@@ -77,10 +84,22 @@ def main():
 
     writer = SummaryWriter(os.path.join('logs', args.save_dir))
 
+    # evaluate the model on validation set
+    valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = evaluate(model, valLoader, loss_function, device, args.neg_rate)
+    writer.add_scalar("val_loss/loss", valLoss, -1)
+    writer.add_scalar("val_score/acc", valAcc, -1)
+    writer.add_scalar("val_score/F1", valF1, -1)
+    writer.add_scalar("val_score/TP", valTP, -1)
+    writer.add_scalar("val_score/FP", valFP, -1)
+    writer.add_scalar("val_score/FN", valFN, -1)
+    writer.add_scalar("val_score/TN", valTN, -1)
+    print("\nStep: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
+        -1, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
+
     for step in range(args.num_steps):
         # train the model for one step
         trainLoss, trainTP, trainFP, trainFN, trainTN, trainAcc, trainF1 = train(model, trainLoader, optimizer, loss_function, device, writer, step,
-                                                                                 args.neg_rate)
+                                                                                 args.neg_rate, args.train_cls_only)
         writer.add_scalar("train_loss/loss", trainLoss, step)
         writer.add_scalar("train_score/acc", trainAcc, step)
         writer.add_scalar("train_score/F1", trainF1, step)
@@ -102,6 +121,7 @@ def main():
         writer.add_scalar("val_score/TN", valTN, step)
         print("\nStep: %03d  Val|| Loss: %.6f || Acc: %.3f  F1: %.3f || TP: %d TN %d FP: %d FN: %d" % (
             step, valLoss, valAcc, valF1, valTP, valTN, valFP, valFN))
+
         writer.add_scalar("hparam/lr", optimizer.param_groups[1]['lr'], step)
 
         # make a scheduler step

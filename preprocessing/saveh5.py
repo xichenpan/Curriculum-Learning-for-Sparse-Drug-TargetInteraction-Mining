@@ -8,7 +8,6 @@ import sys
 sys.path.append("..")
 from utils.parser import parse_args
 from src.alphabets import Uniprot21
-from src.models.embedding import *
 from utils.protein_embedding import *
 
 
@@ -23,7 +22,7 @@ def fill_in_data(data, alphabet, target, target_net, device):
         target[i] = inp.cpu().numpy().flatten()
 
 
-def main():
+def Saveh5():
     args = parse_args()
 
     torch.cuda.set_device(args.gpu_id)
@@ -47,4 +46,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    Saveh5()

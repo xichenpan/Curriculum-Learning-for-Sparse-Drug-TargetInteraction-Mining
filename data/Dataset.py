@@ -59,8 +59,9 @@ class DrugDataset(Dataset):
         for node_id, node_info in graph.nodes.data():
             element = node_info['element']
             hcount = node_info['hcount']
-            node_embedding[node_id, self.element2idx[element]] = 1
-            if self.use_hcount:
+            if element in self.element2idx:
+                node_embedding[node_id, self.element2idx[element]] = 1
+            if self.use_hcount and hcount in self.hcount2idx:
                 node_embedding[node_id, self.hcount2idx[hcount]] = 1
 
         padding_mask = (node_embedding.sum(1) == 0).astype(float)
