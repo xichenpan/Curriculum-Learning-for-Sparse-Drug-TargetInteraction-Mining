@@ -13,6 +13,10 @@ h5py
 ```
 
 ### Quick Start
+Install requirements first by runing:
+```shell
+pip install -r requirements.txt
+```
 
 Test the model as follows:
 
