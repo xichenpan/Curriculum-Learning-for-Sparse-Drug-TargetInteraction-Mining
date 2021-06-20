@@ -31,7 +31,7 @@ def main():
                                            edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     valLoader = DataLoader(valData, batch_size=args.ex_batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
-    threshold_list = np.arange(0.5, 1, 0.05)
+    threshold_list = np.arange(0.7, 0.8, 0.001)
 
     f = h5py.File(args.logits_h5_dir, "r")
     bestF1 = -1
