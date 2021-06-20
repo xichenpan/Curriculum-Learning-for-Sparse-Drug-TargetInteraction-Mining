@@ -1,5 +1,5 @@
-# 3E-DrugTargetInteraction
-
+# Curriculum Learning for Sparse Drug-TargetInteraction Mining
+by Xinyu Xu, Xichen Pan, Haotian Xue, Peiyu Chen
 
 ### Environment
 ```shell
