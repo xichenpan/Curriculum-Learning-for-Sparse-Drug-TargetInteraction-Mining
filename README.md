@@ -21,6 +21,23 @@ cd \path\to\test.py
 python .\test.py --csv_file path\to\csvfile --gpu_id 0
 ```
 
+Train the model following steps:
+1. change pretrain_dir to your own one then put [pretrained protein embedding model](https://github.com/tbepler/protein-sequence-embedding-iclr2019?utm_source=catalyzex.com) in it.
+2. put your csvfile into `data` fold then run
+```shell
+python .\preprocessing\decompose.py
+python .\preprocessing\make_graph_dict.py
+python .\preprocessing\saveh5.py
+```
+3. train the model by runing：
+```shell
+python train.py --save_dir neg3 --gpu_id 0 --neg_rate 3
+```
+4. Doing curriculum learning by running：
+```shell
+python train.py --save_dir neg15 --gpu_id 0 --neg_rate 15 --curriculum_weight ./checkpoints/neg3/model.pt
+```
+
 ### File structure after test
 
 ```shell
