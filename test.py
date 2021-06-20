@@ -8,17 +8,17 @@ from data.datautils import collate_fn
 from models.dt_net import DTNet
 from utils.general import test
 from utils.parser import *
-from preprocessing.decompose import Decompose
+from preprocessing.decompose import Decomposefull
 from preprocessing.saveh5 import Saveh5
 
 
 def main():
-    # Preprocessing
-    Decompose()
-    Saveh5()
     # load args
     args = parse_args()
     assert args.weight is not None
+    # Preprocessing
+    Decomposefull(args.csv_file, '')
+    Saveh5('')
     # set seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -30,27 +30,26 @@ def main():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    # declaring the train and validation datasets and their corresponding dataloaders
-
-    valData = DrugTargetInteractionDataset("val_full", args.neg_rate, args.target_h5_dir, args.freeze_protein_embedding,
-                                           edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
-    valLoader = DataLoader(valData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
+    # declaring the train and test datasets and their corresponding dataloaders
+    testData = DrugTargetInteractionDataset("test", args.neg_rate, args.step_size, args.target_h5_dir, args.freeze_protein_embedding,
+                                            edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
+    testLoader = DataLoader(testData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
     # declaring the model, optimizer, scheduler and the loss function
-    model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, valData.drug_dataset.embedding_dim, args.mlp_depth, args.graph_depth,
-                  args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.atten_type, args.drug_conv, args.target_conv,
-                  args.conv_dropout, args.add_transformer)
+    model = DTNet(args.freeze_protein_embedding, args.d_model, args.graph_layer, testData.drug_dataset.embedding_dim, args.mlp_depth,
+                  args.graph_depth, args.GAT_head, args.target_in_size, args.pretrain_dir, args.gpu_id, args.atten_type, args.drug_conv,
+                  args.target_conv, args.conv_dropout, args.add_transformer, args.focal_loss)
     model.load_state_dict(torch.load(args.weight))
     model.to(device).eval()
 
     print("Evaluating the model from <== %s\n" % args.weight)
     with torch.no_grad():
-        valLoss, valTP, valFP, valFN, valTN, valAcc, valF1 = test(model, valLoader, args.threshold, device)
+        testTP, testFP, testFN, testTN, testAcc, testF1 = test(model, testLoader, args.threshold, device)
 
-    with open("result.csv", 'wb') as f:
+    with open("result.csv", 'w', newline='') as f:
         csv_write = csv.writer(f)
         csv_write.writerow(["Accuracy", "F1 score"])
-        csv_write.writerow([valAcc, valF1])
+        csv_write.writerow(["{0:.3f}".format(testAcc), "{0:.3f}".format(testF1)])
 
     print("\nEvaluation Done.\n")
     return

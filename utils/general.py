@@ -136,11 +136,11 @@ def find_threshold(evalLoader, f, threshold, device):
     return TP, FP, FN, TN, acc, F1
 
 
-def test(model, evalLoader, threshold, device):
+def test(model, testLoader, threshold, device):
     outputAll = []
     labelinputAll = []
 
-    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(evalLoader):
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(testLoader):
         druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
         targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
         labelinputBatch = labelinputBatch.long().to(device)

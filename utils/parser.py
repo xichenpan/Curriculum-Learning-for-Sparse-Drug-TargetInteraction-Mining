@@ -8,27 +8,28 @@ def parse_args():
     """
     parser.add_argument('--drugnet_lr_scale', type=float, default=0.5)
     parser.add_argument('--init_lr', type=float, default=3e-5)
-    parser.add_argument('--curriculum_weight', type=str, default="../3e_xcpan/checkpoints/neg1599/train-step_0023-Acc_0.999.pt")
-    parser.add_argument('--weight', type=str, default="../3e_xcpan/checkpoints/neg1599/train-step_0023-Acc_0.999.pt")
-    parser.add_argument('--neg_rate', type=int, default=1599)
+    parser.add_argument('--curriculum_weight', type=str, default=None)
+    parser.add_argument('--weight', type=str, default="./ckp/submit.pt")
+    parser.add_argument('--neg_rate', type=int, default=1023)
     parser.add_argument('--step_size', type=int, default=65536)
     parser.add_argument('--atten_type', type=str, default="wsam")
-    parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--train_cls_only', type=bool, default=False)
     parser.add_argument('--add_transformer', type=bool, default=False)
     parser.add_argument('--focal_loss', type=bool, default=False)
     parser.add_argument('--threshold', type=float, default=0.768)
     # Dir
-    parser.add_argument('--logits_h5_dir', type=str, default=None)
+    parser.add_argument('--logits_h5_dir', type=str, default='./ckp/submit.h5')
     parser.add_argument('--save_dir', type=str, default='test')
     parser.add_argument('--code_dir', type=str, default='')
-    parser.add_argument('--pretrain_dir', type=str, default='../3e_pretrain/model_weight.bin')
-    parser.add_argument('--target_h5_dir', type=str, default='../3e_pretrain/targetfeature.h5')
+    parser.add_argument('--csv_file', type=str, default='./data/train.csv')
+    parser.add_argument('--pretrain_dir', type=str, default='./cache/model_weight.bin')
+    parser.add_argument('--target_h5_dir', type=str, default='./cache/targetfeature.h5')
     """
         Usually Freeze
     """
     parser.add_argument('--ex_batch_size', type=int, default=256)
-    parser.add_argument('--gpu_id', type=int, default=3)
+    parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--graph_layer', type=str, default='GCN', choices=['GCN', 'GAT'])
     # "string describing convolutional feature extraction layers in form of a python list that contains [(dim, kernel_size, stride), ...]"
     parser.add_argument('--drug_conv', type=str, default="[(512, 1, 1)] * 3")
@@ -53,6 +54,6 @@ def parse_args():
     parser.add_argument('--no_edge_weight', default=False, action='store_true')
     parser.add_argument('--no_hcount', default=False, action='store_true')
     args = parser.parse_args()
-    print('============Args==============')
-    print(args)
+    # print('============Args==============')
+    # print(args)
     return args

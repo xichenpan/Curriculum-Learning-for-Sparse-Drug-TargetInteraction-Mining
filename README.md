@@ -2,68 +2,90 @@
 
 
 ### Environment
-```
+```shell
 python3.6+
 torch
-pysmiles==1.0.1
 numpy
 tensorboardX
+# used in test
+pysmiles==1.0.1
+h5py
 ```
 
-### Allen's Code Structure
+### Quick Start
 
-```
-    -------
-       |---data
-            |---train.csv
-            |---drugs.pkl (after pre-processing)
-            |---targets.pkl (after pre-processing)
-            |---pairs.pkl (after pre-processing)
-            |---element.json (after pre-processing)
-            |---hcount.json (after pre-processing)
-       |---preprocessing
-            |---decompose.py
-            |---make_graph_dict.py
-       |---utils
-            |---parser.py
-            |---init.py
-            |---protein_embedding.py
-            |---general.py 
-       |---models
-            |---GraphModels.py
-            |---dt_net.py
-       |---src
-            code for pretraininig
-       |---train.py
-       |---README.md
+Test the model as follows:
+
+```shell
+cd \path\to\test.py
+python .\test.py --csv_file path\to\csvfile --gpu_id 0
 ```
 
+### File structure after test
 
-### Data PreProcessing
-put ```train.csv``` into ```./data``` folder, then run
+```shell
+│  find_threshold.py
+│  logits_ex.py
+│  README.md
+│  requirements.txt
+│  result.csv # result file
+│  test.py
+│  train.py
+│  
+├─cache
+│      model_weight.bin
+│      targetfeature.h5
+│      
+├─ckp
+│      submit.h5
+│      submit.pt
+│      
+├─data
+│      Dataset.py
+│      datautils.py
+│      drug.pkl
+│      element.json
+│      hcount.json
+│      pairs.pkl
+│      target.pkl
+│      test_neg_pairs.pkl
+│      test_pos_pairs.pkl
+│      
+├─models
+│      Aggregation.py
+│      attn.py
+│      convlist.py
+│      dt_net.py
+│      GraphModels.py
+│      labelsmoothing.py
+│      
+├─preprocessing
+│      decompose.py
+│      make_graph_dict.py
+│      saveh5.py
+│      
+├─src
+│  │  alignment.pyx
+│  │  alphabets.py
+│  │  fasta.py
+│  │  metrics.pyx
+│  │  parse_utils.py
+│  │  pdb.py
+│  │  pfam.py
+│  │  scop.py
+│  │  transmembrane.py
+│  │  utils.py
+│  │  __init__.py
+│  │  
+│  └─models
+│          comparison.py
+│          embedding.py
+│          multitask.py
+│          sequence.py
+│          __init__.py
+│          
+└─utils
+        general.py
+        parser.py
+        protein_embedding.py
 ```
-    python ./preprcessing/decompose.py
-    python ./preprcessing/make_graph_dict.py
-```
-
-First script decompose DT pairs and make train-test-split.   
-Drug info are stored in ```./data/drugs.pkl```   
-Targets info are stored in ```./data/targets.pkl```   
-DT-pairs info are stored in ```./data/pairs.pkl``` in the format of ```List[...[drug_id,target_id,label,isTraingMask]...]```, where ```isTrainingMask``` = 1 for training, 0 for testing.
-
-You should make sure to see the log below for correct split.
-```
-# TrainPositive = 14284
-# TrainNegative = 22759814
-# TestPositive = 1572
-# TestNegative = 2528401
-```
-
-Second script generate ```element.json,hcount.json```
-
-
-### TODO
-* code for fusion
-  * conv1d
-  * map
-* experiment
