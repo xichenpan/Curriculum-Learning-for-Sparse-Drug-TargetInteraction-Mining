@@ -159,3 +159,23 @@ def test(model, testLoader, threshold, device):
 
     TP, FP, FN, TN, acc, F1 = compute_score(outputAll, labelinputAll, -1)
     return TP, FP, FN, TN, acc, F1
+
+
+def output(model, testLoader, threshold, device):
+    outputAll = []
+
+    for batch, (druginputBatch, targetinputBatch, labelinputBatch) in enumerate(tqdm(testLoader, leave=False, desc="Extract", ncols=75)):
+        druginputBatch = (druginputBatch[0].float().to(device), druginputBatch[1].float().to(device), druginputBatch[2].bool().to(device))
+        targetinputBatch = (targetinputBatch[0].to(device), targetinputBatch[1].bool().to(device))
+
+        model.eval()
+        with torch.no_grad():
+            outputBatch = model(druginputBatch, targetinputBatch)
+
+        outputAll.append(outputBatch.detach().cpu())
+
+    outputAll = torch.cat(outputAll, 0)
+    outputAll = F.softmax(outputAll, dim=1)[:, 1]
+    outputAll = (outputAll > threshold).long()
+
+    return outputAll.tolist()

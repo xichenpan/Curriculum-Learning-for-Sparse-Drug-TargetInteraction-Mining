@@ -26,5 +26,9 @@ def collate_fn(dataBatch):
         targetinputBatch = None
 
     # label
-    labelinputBatch = torch.tensor([data[2] for data in dataBatch])
+    if dataBatch[0][2] is not None:
+        labelinputBatch = torch.tensor([data[2] for data in dataBatch])
+    else:
+        labelinputBatch = None
+
     return druginputBatch, targetinputBatch, labelinputBatch

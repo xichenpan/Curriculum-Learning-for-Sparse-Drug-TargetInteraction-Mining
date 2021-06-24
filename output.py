@@ -1,14 +1,14 @@
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-import csv
+import pandas as pd
 
 from data.Dataset import DrugTargetInteractionDataset
 from data.datautils import collate_fn
 from models.dt_net import DTNet
-from utils.general import test
+from utils.general import output
 from utils.parser import *
-from preprocessing.decompose import Decomposefull
+from preprocessing.decompose import Decomposefull_without_label
 from preprocessing.saveh5 import Saveh5
 
 
@@ -17,8 +17,8 @@ def main():
     args = parse_args()
     assert args.weight is not None
     # Preprocessing
-    # Decomposefull(args.csv_file, '')
-    # Saveh5('')
+    Decomposefull_without_label(args.csv_file, '')
+    Saveh5('')
     # set seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -31,7 +31,7 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # declaring the train and test datasets and their corresponding dataloaders
-    testData = DrugTargetInteractionDataset("test", args.neg_rate, args.step_size, args.target_h5_dir, args.freeze_protein_embedding,
+    testData = DrugTargetInteractionDataset("output", args.neg_rate, args.step_size, args.target_h5_dir, args.freeze_protein_embedding,
                                             edge_weight=not args.no_edge_weight, use_hcount=not args.no_hcount)
     testLoader = DataLoader(testData, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False, **kwargs)
 
@@ -44,12 +44,10 @@ def main():
 
     print("Evaluating the model from <== %s\n" % args.weight)
     with torch.no_grad():
-        testTP, testFP, testFN, testTN, testAcc, testF1 = test(model, testLoader, args.threshold, device)
+        logits = output(model, testLoader, args.threshold, device)
 
-    with open("result.csv", 'w', newline='') as f:
-        csv_write = csv.writer(f)
-        csv_write.writerow(["Accuracy", "F1 score"])
-        csv_write.writerow(["{0:.3f}".format(testAcc), "{0:.3f}".format(testF1)])
+    df = pd.DataFrame({'Label': logits})
+    df.to_csv("result.csv", index=False, sep=',')
 
     print("\nEvaluation Done.\n")
     return
